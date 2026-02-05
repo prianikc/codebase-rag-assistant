@@ -25,7 +25,7 @@ import { LlmService, LlmConfig } from '../services/llm.service';
 
         <h2 class="text-xl font-bold text-white mb-4 font-mono flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           SYSTEM CONFIG
@@ -86,15 +86,33 @@ import { LlmService, LlmConfig } from '../services/llm.service';
                 >
               </div>
               
-              <!-- Chat Model -->
-              <div>
+              <!-- Chat Model (With Autocomplete) -->
+              <div class="relative group">
                 <label class="block text-[10px] uppercase font-mono text-slate-500 mb-1">Chat Model ID (LLM)</label>
-                <input 
-                  [(ngModel)]="config.lmStudioChatModel" 
-                  type="text" 
-                  placeholder="e.g. llama-3-instruct"
-                  class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none transition-colors"
-                >
+                <div class="relative">
+                  <input 
+                    [(ngModel)]="config.lmStudioChatModel" 
+                    type="text" 
+                    placeholder="e.g. openai/gpt-oss-20b"
+                    (focus)="showChatSuggestions = true"
+                    (blur)="hideChatSuggestions()"
+                    class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none transition-colors"
+                  >
+                  <!-- Suggestions Dropdown -->
+                  @if (showChatSuggestions) {
+                    <div class="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded shadow-2xl z-20 max-h-32 overflow-y-auto ring-1 ring-slate-700">
+                       <div class="px-2 py-1 text-[8px] text-slate-600 uppercase font-mono bg-slate-950">Suggested Models</div>
+                       @for (model of chatModels; track model) {
+                          <div 
+                            (mousedown)="selectChatModel(model)"
+                            class="px-3 py-2 text-[10px] font-mono text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer border-b border-slate-800/50 last:border-0 flex justify-between items-center group/item">
+                            <span>{{ model }}</span>
+                            <span class="hidden group-hover/item:inline text-blue-400 opacity-50">↵</span>
+                          </div>
+                       }
+                    </div>
+                  }
+                </div>
               </div>
 
               <!-- Embedding Model -->
@@ -160,8 +178,32 @@ export class SettingsModalComponent {
   
   config: LlmConfig = { ...this.llmService.config() };
 
+  // Autocomplete Data
+  chatModels = [
+    'openai/gpt-oss-20b',
+    'lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF',
+    'TheBloke/Mistral-7B-Instruct-v0.2-GGUF',
+    'microsoft/Phi-3-mini-4k-instruct-gguf',
+    'local-model'
+  ];
+  
+  showChatSuggestions = false;
+
   setProvider(p: 'gemini' | 'lm-studio') {
     this.config.provider = p;
+  }
+  
+  // Handlers for autocomplete
+  hideChatSuggestions() {
+    // Delay hiding to allow click event to register
+    setTimeout(() => {
+      this.showChatSuggestions = false;
+    }, 200);
+  }
+
+  selectChatModel(model: string) {
+    this.config.lmStudioChatModel = model;
+    this.showChatSuggestions = false;
   }
 
   onBackdropClick() {
