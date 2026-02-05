@@ -9,6 +9,11 @@ export interface VectorDocument {
   metadata?: any;
 }
 
+export interface SearchResult {
+  doc: VectorDocument;
+  score: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -31,7 +36,7 @@ export class VectorStoreService {
     this.documents.set([]);
   }
 
-  similaritySearch(queryEmbedding: number[], topK: number = 4): VectorDocument[] {
+  similaritySearch(queryEmbedding: number[], topK: number = 10, minScore: number = 0.0): SearchResult[] {
     const docs = this.documents();
     if (docs.length === 0) return [];
 
@@ -41,10 +46,12 @@ export class VectorStoreService {
       score: cosineSimilarity(queryEmbedding, doc.embedding)
     }));
 
-    // Sort descending
-    scoredDocs.sort((a, b) => b.score - a.score);
+    // Filter by minScore and Sort descending
+    const filteredAndSorted = scoredDocs
+      .filter(item => item.score >= minScore)
+      .sort((a, b) => b.score - a.score);
 
     // Return top K
-    return scoredDocs.slice(0, topK).map(item => item.doc);
+    return filteredAndSorted.slice(0, topK);
   }
 }

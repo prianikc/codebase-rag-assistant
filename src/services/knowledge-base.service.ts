@@ -1,7 +1,7 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { LlmService } from './llm.service';
-import { VectorStoreService, VectorDocument } from './vector-store.service';
-import { chunkText } from './vector-utils';
+import { VectorStoreService, VectorDocument, SearchResult } from './vector-store.service';
+import { chunkTextDetailed } from './vector-utils';
 
 @Injectable({
   providedIn: 'root'
@@ -70,18 +70,23 @@ export class KnowledgeBaseService {
 
       this.progressStatus.set(`Vectorizing: ${raw.path} (${processed + 1}/${rawFiles.length})`);
       
-      const chunks = chunkText(raw.content, 1500, 200);
+      // OPTIMIZATION: Use detailed chunks (600 chars) for better code resolution
+      const chunks = chunkTextDetailed(raw.content, 600, 100);
       
       for (let i = 0; i < chunks.length; i++) {
         try {
-          const chunk = chunks[i];
-          const embedding = await this.llmService.getEmbedding(chunk);
+          const chunkData = chunks[i];
+          const embedding = await this.llmService.getEmbedding(chunkData.text);
           
           vectorDocs.push({
             id: `${raw.path}-${i}`,
             filePath: raw.path,
-            content: chunk,
-            embedding: embedding
+            content: chunkData.text,
+            embedding: embedding,
+            metadata: {
+              startIndex: chunkData.startIndex,
+              endIndex: chunkData.endIndex
+            }
           });
           
           // Reset error count on success
@@ -117,17 +122,17 @@ export class KnowledgeBaseService {
     this.isIngesting.set(false);
   }
 
-  async search(query: string): Promise<{ content: string, source: string, score: number }[]> {
+  async search(query: string, topK: number = 10, minScore: number = 0.5): Promise<{ content: string, source: string, score: number }[]> {
     // 1. Embed query
     const queryEmbedding = await this.llmService.getEmbedding(query);
     
-    // 2. Search Vector Store
-    const results = this.vectorStore.similaritySearch(queryEmbedding, 5);
+    // 2. Search Vector Store (Now returns scores)
+    const results: SearchResult[] = this.vectorStore.similaritySearch(queryEmbedding, topK, minScore);
     
-    return results.map(doc => ({
-      content: doc.content,
-      source: doc.filePath,
-      score: 0 // We handled score inside vector store sort, can expose if needed
+    return results.map(res => ({
+      content: res.doc.content,
+      source: res.doc.filePath,
+      score: res.score
     }));
   }
 

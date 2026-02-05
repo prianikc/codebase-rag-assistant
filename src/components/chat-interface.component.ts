@@ -10,7 +10,7 @@ import { VectorStoreService } from '../services/vector-store.service';
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
-  sources?: string[];
+  sources?: { path: string, score: number }[]; // Updated sources structure
   timestamp: Date;
 }
 
@@ -61,7 +61,7 @@ interface Message {
                </svg>
             </div>
             <p class="font-mono text-sm">System Ready.</p>
-            <p class="font-mono text-xs mt-2">1. Ingest Files (Vectorize)</p>
+            <p class="font-mono text-xs mt-2">1. Ingest Files (High-Res Vectorization)</p>
             <p class="font-mono text-xs">2. Connect LLM (Settings)</p>
             <p class="font-mono text-xs">3. Query Context</p>
           </div>
@@ -88,13 +88,17 @@ interface Message {
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                     </svg>
-                    CONTEXT_RETRIEVED
+                    HIGH_REL_CONTEXT (Top Matches)
                   </p>
                   <div class="flex flex-wrap gap-2">
-                    @for (source of msg.sources; track source) {
-                      <span class="text-[10px] bg-slate-950/50 px-2 py-1 rounded border border-slate-700/50 text-slate-400 font-mono">
-                        {{ source }}
-                      </span>
+                    @for (source of msg.sources; track source.path) {
+                      <div class="flex items-center gap-1 text-[10px] bg-slate-950/50 px-2 py-1 rounded border border-slate-700/50 font-mono"
+                           [class.border-green-800]="source.score > 0.75"
+                           [class.text-green-400]="source.score > 0.75"
+                           [class.text-slate-400]="source.score <= 0.75">
+                        <span>{{ source.path }}</span>
+                        <span class="opacity-50 text-[9px]">{{ (source.score * 100) | number:'1.0-0' }}%</span>
+                      </div>
                     }
                   </div>
                 </div>
@@ -113,8 +117,8 @@ interface Message {
                   </span>
               </div>
               <span class="text-xs font-mono text-green-400">
-                @if (step() === 'retrieving') { SEARCHING VECTOR SPACE... }
-                @else { GENERATING RESPONSE... }
+                @if (step() === 'retrieving') { SEARCHING DEEP INDEX... }
+                @else { SYNTHESIZING RESPONSE... }
               </span>
             </div>
           </div>
@@ -182,17 +186,28 @@ export class ChatInterfaceComponent implements AfterViewChecked {
 
     try {
       // 1. Vector Search (RAG)
-      const relevantChunks = await this.kbService.search(userText);
-      // Fix: Ensure sources is explicitly a string array using Array.from to handle Set iteration correctly in all environments
-      const sources: string[] = Array.from(new Set(relevantChunks.map(c => c.source)));
+      // OPTIMIZATION: Request top 15 chunks (instead of 5) because chunks are smaller now (600 chars).
+      // Also apply a minScore of 0.45 to filter out complete noise.
+      const relevantChunks = await this.kbService.search(userText, 15, 0.45);
       
+      // Extract unique sources with their highest score
+      const sourceMap = new Map<string, number>();
+      relevantChunks.forEach(c => {
+         const current = sourceMap.get(c.source) || 0;
+         if (c.score > current) sourceMap.set(c.source, c.score);
+      });
+      
+      const sources = Array.from(sourceMap.entries())
+        .map(([path, score]) => ({ path, score }))
+        .sort((a, b) => b.score - a.score);
+
       let contextBlock = '';
       if (relevantChunks.length > 0) {
         contextBlock = relevantChunks.map(c => 
-          `FILENAME: ${c.source}\nCONTENT:\n${c.content}\n---`
+          `FILENAME: ${c.source} (Match: ${(c.score * 100).toFixed(0)}%)\nCONTENT:\n${c.content}\n---`
         ).join('\n');
       } else {
-        contextBlock = "No specific code context found.";
+        contextBlock = "No specific code context found (Low similarity scores).";
       }
 
       this.step.set('generating');
@@ -201,10 +216,11 @@ export class ChatInterfaceComponent implements AfterViewChecked {
       const systemPrompt = `You are an advanced software engineer.
 User Query: ${userText}
 
-Here is the retrieved code context from the vector database:
+Here is the retrieved code context from the vector database (High Resolution Chunks):
 ${contextBlock}
 
 Instructions:
+- The context consists of smaller, more precise code snippets.
 - Use the context to answer the query accurately.
 - If the context contains the answer, cite the filename.
 - If the context is irrelevant, answer based on general knowledge but mention that context was missing.
