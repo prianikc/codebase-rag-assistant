@@ -64,24 +64,42 @@ import { LlmService, LlmConfig } from '../services/llm.service';
                 >
               </div>
               
+              <!-- Chat Model -->
               <div>
-                <label class="block text-[10px] uppercase font-mono text-slate-500 mb-1">Model Identifier</label>
+                <label class="block text-[10px] uppercase font-mono text-slate-500 mb-1">Chat Model ID (LLM)</label>
                 <input 
-                  [(ngModel)]="config.lmStudioModel" 
+                  [(ngModel)]="config.lmStudioChatModel" 
                   type="text" 
-                  placeholder="local-model"
+                  placeholder="e.g. llama-3-instruct"
                   class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none transition-colors"
                 >
+              </div>
+
+              <!-- Embedding Model -->
+              <div>
+                <label class="block text-[10px] uppercase font-mono text-yellow-500/80 mb-1">Embedding Model ID</label>
+                <input 
+                  [(ngModel)]="config.lmStudioEmbeddingModel" 
+                  type="text" 
+                  placeholder="e.g. text-embedding-nomic-embed-text-v1.5"
+                  class="w-full bg-slate-950 border border-yellow-800/50 rounded px-3 py-2 text-xs text-slate-200 font-mono focus:border-yellow-500 outline-none transition-colors"
+                >
+                <p class="text-[9px] text-slate-500 mt-1">
+                   Required for ingesting files. This must match the Embedding model loaded in LM Studio.
+                </p>
               </div>
 
               <div class="bg-blue-900/20 border border-blue-900/30 p-3 rounded flex gap-2">
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-400 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                  </svg>
-                 <p class="text-[10px] text-blue-300/80 leading-relaxed">
-                   Ensure your local server is running and <strong>CORS</strong> is enabled. 
-                   Standard LM Studio/Ollama endpoints end in <code>/v1</code>.
-                 </p>
+                 <div class="text-[10px] text-blue-300/80 leading-relaxed">
+                   <p class="mb-1"><strong>Usage Tip:</strong></p>
+                   1. Load an <strong>Embedding Model</strong> (e.g. Nomic) in LM Studio.<br>
+                   2. Ingest your files in this app.<br>
+                   3. Load a <strong>Chat Model</strong> (e.g. Mistral) in LM Studio.<br>
+                   4. Chat with your codebase.
+                 </div>
               </div>
             </div>
           } @else {

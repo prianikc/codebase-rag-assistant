@@ -6,7 +6,10 @@ export type LlmProvider = 'gemini' | 'lm-studio';
 export interface LlmConfig {
   provider: LlmProvider;
   lmStudioUrl: string; // e.g. http://localhost:1234/v1
-  lmStudioModel: string;
+  
+  // Specific model IDs for different tasks
+  lmStudioChatModel: string;      // e.g. "llama-3-8b-instruct"
+  lmStudioEmbeddingModel: string; // e.g. "nomic-embed-text-v1.5"
 }
 
 @Injectable({
@@ -17,7 +20,9 @@ export class LlmService {
   config = signal<LlmConfig>({
     provider: 'gemini',
     lmStudioUrl: 'http://localhost:1234/v1',
-    lmStudioModel: 'local-model' 
+    // Default placeholders suitable for common LM Studio setups
+    lmStudioChatModel: 'local-model', 
+    lmStudioEmbeddingModel: 'text-embedding-nomic-embed-text-v1.5' 
   });
 
   private geminiClient: GoogleGenAI;
@@ -63,18 +68,20 @@ export class LlmService {
       }
     } else {
       // LM Studio / OpenAI Compatible
+      // CRITICAL FIX: Use the explicit embedding model ID, not the chat model ID.
       try {
         const response = await fetch(`${conf.lmStudioUrl}/embeddings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             input: text,
-            model: conf.lmStudioModel 
+            model: conf.lmStudioEmbeddingModel 
           })
         });
         
         if (!response.ok) {
-           throw new Error(`LM Studio Error: ${response.status} ${response.statusText}`);
+           const errText = await response.text();
+           throw new Error(`LM Studio Error (${response.status}): ${errText}`);
         }
         
         const data = await response.json();
@@ -102,10 +109,6 @@ export class LlmService {
          throw new Error("Gemini API Key is missing. Please check your environment configuration.");
       }
 
-      // Convert standard messages to Gemini format if needed, 
-      // but generateContent simplifies this. We'll use the last user message + context approach 
-      // or chat history. For this RAG implementation, we often send one big prompt.
-      
       const lastMsg = messages[messages.length - 1].content;
       
       const response = await this.geminiClient.models.generateContent({
@@ -130,14 +133,18 @@ export class LlmService {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: conf.lmStudioModel,
+            // CRITICAL FIX: Use the chat model ID specifically
+            model: conf.lmStudioChatModel, 
             messages: apiMessages,
             temperature: 0.3,
             stream: false
           })
         });
 
-        if (!response.ok) throw new Error(`LM Studio Chat Error: ${response.statusText}`);
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`LM Studio Chat Error (${response.status}): ${errText}`);
+        }
         
         const data = await response.json();
         return data.choices[0].message.content;
