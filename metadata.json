@@ -1,0 +1,5 @@
+{
+  "name": "Codebase RAG Assistant",
+  "description": "A local RAG (Retrieval-Augmented Generation) system for your code. Ingest local folders or repositories, index them into a client-side knowledge base, and chat using Google Gemini.",
+  "requestFramePermissions": []
+}
