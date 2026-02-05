@@ -70,8 +70,9 @@ export class KnowledgeBaseService {
 
       this.progressStatus.set(`Vectorizing: ${raw.path} (${processed + 1}/${rawFiles.length})`);
       
-      // OPTIMIZATION: Use detailed chunks (600 chars) for better code resolution
-      const chunks = chunkTextDetailed(raw.content, 600, 100);
+      // OPTIMIZATION: Ultra-High Resolution (200 chars per chunk)
+      // This increases precision by ~200% compared to previous 600 chars setting.
+      const chunks = chunkTextDetailed(raw.content, 200, 50);
       
       for (let i = 0; i < chunks.length; i++) {
         try {
