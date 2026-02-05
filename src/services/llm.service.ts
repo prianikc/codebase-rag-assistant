@@ -10,6 +10,9 @@ export interface LlmConfig {
   // Specific model IDs for different tasks
   lmStudioChatModel: string;      // e.g. "llama-3-8b-instruct"
   lmStudioEmbeddingModel: string; // e.g. "nomic-embed-text-v1.5"
+
+  // Retrieval Settings
+  minRelevanceScore: number; // 0.0 to 1.0
 }
 
 @Injectable({
@@ -22,7 +25,8 @@ export class LlmService {
     lmStudioUrl: 'http://localhost:1234/v1',
     // Default placeholders suitable for common LM Studio setups
     lmStudioChatModel: 'local-model', 
-    lmStudioEmbeddingModel: 'text-embedding-nomic-embed-text-v1.5' 
+    lmStudioEmbeddingModel: 'text-embedding-nomic-embed-text-v1.5',
+    minRelevanceScore: 0.45 // Default to 45% similarity
   });
 
   private geminiClient: GoogleGenAI;

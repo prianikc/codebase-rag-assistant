@@ -187,8 +187,9 @@ export class ChatInterfaceComponent implements AfterViewChecked {
     try {
       // 1. Vector Search (RAG)
       // OPTIMIZATION: Request top 15 chunks (instead of 5) because chunks are smaller now (600 chars).
-      // Also apply a minScore of 0.45 to filter out complete noise.
-      const relevantChunks = await this.kbService.search(userText, 15, 0.45);
+      // Filter is now dynamic based on user setting
+      const minScore = this.llmService.config().minRelevanceScore;
+      const relevantChunks = await this.kbService.search(userText, 15, minScore);
       
       // Extract unique sources with their highest score
       const sourceMap = new Map<string, number>();
