@@ -21,6 +21,10 @@ export class VectorStoreService {
   // The "Database"
   private documents = signal<VectorDocument[]>([]);
   
+  // Track which model was used to generate these vectors
+  // Format: "provider:model-name"
+  private storeSignature = signal<string>('');
+
   public docCount = computed(() => this.documents().length);
   public memoryUsage = computed(() => {
     // Rough estimate
@@ -28,12 +32,22 @@ export class VectorStoreService {
     return (json.length / 1024 / 1024).toFixed(2) + ' MB';
   });
 
-  addDocuments(docs: VectorDocument[]) {
+  addDocuments(docs: VectorDocument[], signature: string) {
+    // If store is empty, set signature. If not, we theoretically should check consistency,
+    // but for now we assume a clear() happened before a major ingest or appended with same model.
+    if (this.documents().length === 0) {
+      this.storeSignature.set(signature);
+    }
     this.documents.update(current => [...current, ...docs]);
   }
 
   clear() {
     this.documents.set([]);
+    this.storeSignature.set('');
+  }
+
+  getStoreSignature(): string {
+    return this.storeSignature();
   }
 
   similaritySearch(queryEmbedding: number[], topK: number = 10, minScore: number = 0.0): SearchResult[] {

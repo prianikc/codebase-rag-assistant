@@ -1,18 +1,12 @@
-import { Component, inject, signal, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
+import { Component, inject, signal, ElementRef, ViewChild, AfterViewChecked, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LlmService } from '../services/llm.service';
 import { KnowledgeBaseService } from '../services/knowledge-base.service';
+import { ChatHistoryService, ChatMessage } from '../services/chat-history.service';
 import { MarkdownPipe } from '../services/markdown.pipe';
 import { SettingsModalComponent } from './settings-modal.component';
 import { VectorStoreService } from '../services/vector-store.service';
-
-interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  sources?: { path: string, score: number }[]; // Updated sources structure
-  timestamp: Date;
-}
 
 @Component({
   selector: 'app-chat-interface',
@@ -32,8 +26,7 @@ interface Message {
           <div>
             <h2 class="text-lg font-mono font-bold text-green-400 tracking-tight">RAG_TERMINAL</h2>
             <div class="text-[10px] text-slate-500 font-mono flex gap-2">
-              <span>VECTORS: {{ vectorStore.docCount() }}</span>
-              <span>MEM: {{ vectorStore.memoryUsage() }}</span>
+              <span>SESSION: {{ currentSessionTitle() }}</span>
             </div>
           </div>
         </div>
@@ -41,9 +34,7 @@ interface Message {
         <button 
           (click)="toggleSettings()"
           class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700 hover:bg-slate-800 rounded text-xs font-mono text-slate-300 transition-all">
-          <span [class]="llmService.config().provider === 'gemini' ? 'text-green-400' : 'text-blue-400'">
-             ● {{ llmService.config().provider | uppercase }}
-          </span>
+          <span [innerHTML]="providerLabel()"></span>
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -54,16 +45,38 @@ interface Message {
       <!-- Messages Area -->
       <div class="flex-1 overflow-y-auto p-4 space-y-6" #scrollContainer>
         @if (messages().length === 0) {
-          <div class="h-full flex flex-col items-center justify-center text-slate-600 opacity-50">
-            <div class="border border-slate-700 p-8 rounded-full bg-slate-900/50 mb-4">
-               <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-               </svg>
+          <div class="h-full flex flex-col items-center justify-center">
+            
+            <!-- Logo / Status -->
+            <div class="text-slate-600 opacity-50 flex flex-col items-center mb-8">
+              <div class="border border-slate-700 p-6 rounded-full bg-slate-900/50 mb-4 shadow-2xl">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                 </svg>
+              </div>
+              <p class="font-mono text-sm tracking-widest uppercase">System Online</p>
             </div>
-            <p class="font-mono text-sm">System Ready.</p>
-            <p class="font-mono text-xs mt-2">1. Ingest Files (High-Res Vectorization)</p>
-            <p class="font-mono text-xs">2. Connect LLM (Settings)</p>
-            <p class="font-mono text-xs">3. Query Context</p>
+
+            <!-- Starter Chips -->
+            <div class="w-full max-w-2xl px-6">
+              <p class="text-[10px] text-slate-500 font-mono mb-4 uppercase tracking-wider text-center">Quick Actions</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                @for (preset of presets; track preset) {
+                  <button 
+                    (click)="usePreset(preset)"
+                    class="group relative flex items-center justify-between p-4 bg-slate-800/40 border border-slate-800 hover:border-slate-600 hover:bg-slate-800/80 rounded-lg transition-all duration-300 text-left"
+                  >
+                     <span class="text-xs font-mono text-slate-400 group-hover:text-green-400 transition-colors">
+                       {{ preset }}
+                     </span>
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-slate-600 group-hover:text-green-400 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                     </svg>
+                  </button>
+                }
+              </div>
+            </div>
+
           </div>
         }
 
@@ -127,6 +140,20 @@ interface Message {
 
       <!-- Input Area -->
       <div class="p-4 bg-slate-950 border-t border-slate-800">
+        <!-- RAG Toggle / Tools -->
+        <div class="flex justify-between items-center mb-2 px-1">
+           <label class="flex items-center gap-2 cursor-pointer group">
+             <div class="relative">
+               <input type="checkbox" [(ngModel)]="useRag" class="sr-only peer">
+               <div class="w-8 h-4 bg-slate-700 rounded-full peer-checked:bg-green-600 transition-colors"></div>
+               <div class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+             </div>
+             <span class="text-[10px] font-mono uppercase text-slate-400 group-hover:text-slate-200 transition-colors select-none">
+               Search Codebase
+             </span>
+           </label>
+        </div>
+
         <div class="flex gap-2 relative">
           <textarea 
             [(ngModel)]="userInput" 
@@ -154,17 +181,57 @@ export class ChatInterfaceComponent implements AfterViewChecked {
   public llmService = inject(LlmService);
   public kbService = inject(KnowledgeBaseService);
   public vectorStore = inject(VectorStoreService);
+  public chatService = inject(ChatHistoryService);
   
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
   userInput = '';
-  messages = signal<Message[]>([]);
+  
+  // Bind directly to the service's current session messages
+  messages = computed(() => this.chatService.currentSession()?.messages || []);
+  currentSessionTitle = computed(() => this.chatService.currentSession()?.title || 'New Chat');
+
   isGenerating = signal(false);
   step = signal<'idle' | 'retrieving' | 'generating'>('idle');
   showSettings = false;
+  useRag = false;
+
+  // Starter presets
+  presets = [
+    "Расскажи о проекте!",
+    "Покажи кусок кода со сложной логикой!",
+    "Какова структура проекта?",
+    "Как запустить проект?"
+  ];
+
+  constructor() {
+    // Auto-scroll when messages change
+    effect(() => {
+      this.messages();
+      setTimeout(() => this.scrollToBottom(), 50);
+    });
+  }
+
+  // Computed visual label for the current provider state
+  providerLabel = computed(() => {
+    const c = this.llmService.config();
+    const chat = c.chatProvider === 'gemini' ? '<span class="text-green-400">GEMINI</span>' : '<span class="text-blue-400">LOCAL</span>';
+    const embed = c.embeddingProvider === 'gemini' ? '<span class="text-green-400">GEMINI</span>' : '<span class="text-blue-400">LOCAL</span>';
+    
+    if (c.chatProvider === c.embeddingProvider) {
+      return `● ${chat}`;
+    }
+    return `● ${chat} + ${embed}`;
+  });
 
   toggleSettings() {
     this.showSettings = !this.showSettings;
+  }
+
+  usePreset(text: string) {
+    this.userInput = text;
+    this.useRag = true;
+    this.triggerSend();
   }
 
   sendMessage(event?: Event) {
@@ -180,59 +247,122 @@ export class ChatInterfaceComponent implements AfterViewChecked {
     const userText = this.userInput;
     this.userInput = '';
 
-    this.addMessage({ role: 'user', content: userText, timestamp: new Date() });
+    // Add User Message to History
+    this.chatService.addMessageToCurrent({ 
+      role: 'user', 
+      content: userText, 
+      timestamp: new Date() 
+    });
+
     this.isGenerating.set(true);
-    this.step.set('retrieving');
+    
+    let contextBlock = '';
+    let sources: { path: string, score: number }[] = [];
 
     try {
-      // 1. Vector Search (RAG)
-      // OPTIMIZATION: Request top 40 chunks (high resolution mode).
-      // Filter is now dynamic based on user setting
-      const minScore = this.llmService.config().minRelevanceScore;
-      const relevantChunks = await this.kbService.search(userText, 40, minScore);
-      
-      // Extract unique sources with their highest score
-      const sourceMap = new Map<string, number>();
-      relevantChunks.forEach(c => {
-         const current = sourceMap.get(c.source) || 0;
-         if (c.score > current) sourceMap.set(c.source, c.score);
-      });
-      
-      const sources = Array.from(sourceMap.entries())
-        .map(([path, score]) => ({ path, score }))
-        .sort((a, b) => b.score - a.score);
+      // 1. Vector Search (RAG) - Only if enabled
+      if (this.useRag) {
+        this.step.set('retrieving');
+        
+        try {
+          const userMinScore = this.llmService.config().minRelevanceScore;
+          
+          if (this.vectorStore.docCount() === 0) {
+             // Case: User wants RAG but no files
+             const warningMsg: ChatMessage = {
+               role: 'system',
+               content: `⚠️ **RAG Warning**: You requested a codebase search, but no files have been ingested yet. Please ingest a folder or repo in the "Files" tab.`,
+               timestamp: new Date()
+             };
+             this.chatService.addMessageToCurrent(warningMsg);
+             contextBlock = "No code context available (No files ingested).";
 
-      let contextBlock = '';
-      if (relevantChunks.length > 0) {
-        contextBlock = relevantChunks.map(c => 
-          `FILENAME: ${c.source} (Match: ${(c.score * 100).toFixed(0)}%)\nCONTENT:\n${c.content}\n---`
-        ).join('\n');
-      } else {
-        contextBlock = "No specific code context found (Low similarity scores).";
+          } else {
+             // Get Raw Results
+             const rawChunks = await this.kbService.search(userText, 40, 0.0);
+             const relevantChunks = rawChunks.filter(c => c.score >= userMinScore);
+             
+             if (rawChunks.length > 0 && relevantChunks.length === 0) {
+                const bestMatch = Math.max(...rawChunks.map(c => c.score));
+                const warningMsg: ChatMessage = {
+                  role: 'system',
+                  content: `⚠️ **RAG Filter Warning**: Found relevant code (Max Score: ${(bestMatch*100).toFixed(0)}%), but below Threshold (${(userMinScore*100).toFixed(0)}%). Lower strictness in settings?`,
+                  timestamp: new Date()
+                };
+                this.chatService.addMessageToCurrent(warningMsg);
+                contextBlock = "No code context available (Filtered by strictness settings).";
+             } else {
+               const sourceMap = new Map<string, number>();
+               relevantChunks.forEach(c => {
+                  const current = sourceMap.get(c.source) || 0;
+                  if (c.score > current) sourceMap.set(c.source, c.score);
+               });
+               
+               sources = Array.from(sourceMap.entries())
+                 .map(([path, score]) => ({ path, score }))
+                 .sort((a, b) => b.score - a.score);
+
+               if (relevantChunks.length > 0) {
+                 contextBlock = relevantChunks.map(c => 
+                   `FILENAME: ${c.source} (Match: ${(c.score * 100).toFixed(0)}%)\nCONTENT:\n${c.content}\n---`
+                 ).join('\n');
+               } else {
+                  contextBlock = "No specific code context found (Low similarity scores).";
+                  // Fallback to file structure if query is general
+                  if (userText.toLowerCase().includes('project') || userText.toLowerCase().includes('structure')) {
+                     const fileTree = this.kbService.filePaths().slice(0, 200).join('\n');
+                     contextBlock += `\n\nExisting File Structure:\n${fileTree}`;
+                  }
+               }
+             }
+          }
+        } catch (searchError: any) {
+           this.chatService.addMessageToCurrent({
+             role: 'system',
+             content: `⚠️ **RAG System Warning**: ${searchError.message}`,
+             timestamp: new Date()
+           });
+           this.isGenerating.set(false);
+           this.step.set('idle');
+           return; 
+        }
       }
 
       this.step.set('generating');
 
       // 2. LLM Generation
-      const systemPrompt = `You are an advanced software engineer.
+      let systemPrompt = `You are an advanced software engineer.`;
+      
+      if (this.useRag) {
+        systemPrompt += `
 User Query: ${userText}
 
-Here is the retrieved code context from the vector database (High Resolution Chunks):
+Here is the retrieved code context from the vector database:
 ${contextBlock}
 
 Instructions:
-- The context consists of smaller, more precise code snippets.
+- The context consists of smaller code snippets.
 - Use the context to answer the query accurately.
 - If the context contains the answer, cite the filename.
 - If the context is irrelevant, answer based on general knowledge but mention that context was missing.
 `;
+      } else {
+        systemPrompt += `
+User Query: ${userText}
 
+Note: The user has DISABLED code retrieval for this message. Answer based on general knowledge or previous conversation context. Do not hallucinate code from the current project if you haven't seen it.
+`;
+      }
+
+      // Convert ChatHistory messages to simple format for LLM Service
+      const historyForLlm = this.messages().map(m => ({ role: m.role, content: m.content }));
+      
       const responseText = await this.llmService.generateCompletion(
-        this.messages().map(m => ({ role: m.role, content: m.content })),
+        historyForLlm,
         systemPrompt
       );
 
-      this.addMessage({
+      this.chatService.addMessageToCurrent({
         role: 'assistant',
         content: responseText,
         sources: sources.length > 0 ? sources : undefined,
@@ -240,7 +370,7 @@ Instructions:
       });
 
     } catch (error) {
-      this.addMessage({
+      this.chatService.addMessageToCurrent({
         role: 'system',
         content: `Error: ${error instanceof Error ? error.message : 'Unknown failure'}`,
         timestamp: new Date()
@@ -251,17 +381,15 @@ Instructions:
     }
   }
 
-  addMessage(msg: Message) {
-    this.messages.update(msgs => [...msgs, msg]);
-  }
-
   ngAfterViewChecked() {
     this.scrollToBottom();
   }
 
   scrollToBottom(): void {
     try {
-      this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+      if (this.scrollContainer) {
+        this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+      }
     } catch(err) { }
   }
 }
