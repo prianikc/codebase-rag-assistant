@@ -70,9 +70,16 @@ export class KnowledgeBaseService {
 
       this.progressStatus.set(`Vectorizing: ${raw.path} (${processed + 1}/${rawFiles.length})`);
       
-      // OPTIMIZATION: Ultra-High Resolution (200 chars per chunk)
-      // This increases precision by ~200% compared to previous 600 chars setting.
-      const chunks = chunkTextDetailed(raw.content, 200, 50);
+      // REFINED CHUNKING STRATEGY:
+      // 1. Code Files: 300 chars + 75 overlap. 
+      //    Reason: 200 was too fragmented. 300 captures full statements/small functions.
+      // 2. Text/Data Files: 600 chars + 120 overlap.
+      //    Reason: Narrative text needs broader context to be semantically meaningful.
+      const isDataOrText = raw.path.endsWith('.md') || raw.path.endsWith('.txt') || raw.path.endsWith('.json') || raw.path.endsWith('.yaml');
+      const chunkSize = isDataOrText ? 600 : 300;
+      const overlap = isDataOrText ? 120 : 75;
+
+      const chunks = chunkTextDetailed(raw.content, chunkSize, overlap);
       
       for (let i = 0; i < chunks.length; i++) {
         try {
