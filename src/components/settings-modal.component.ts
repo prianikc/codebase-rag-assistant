@@ -140,30 +140,8 @@ import { LlmService, LlmConfig, LlmProvider } from '../services/llm.service';
            </div>
         }
 
-        <!-- General Settings -->
-        <div class="mt-6 pt-4 border-t border-slate-800">
-           <div class="flex justify-between items-center mb-1">
-               <label class="text-[10px] font-mono uppercase text-slate-400 tracking-wider">Similarity Threshold (Strictness)</label>
-               <span class="text-xs font-mono text-blue-400 font-bold">{{ (config.minRelevanceScore * 100) | number:'1.0-0' }}%</span>
-           </div>
-           <!-- Use (input) to force numeric conversion -->
-           <input 
-             type="range" 
-             min="0" 
-             max="0.95" 
-             step="0.05" 
-             [value]="config.minRelevanceScore" 
-             (input)="updateScore($event)"
-             class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-           >
-           <div class="flex justify-between mt-1 text-[9px] text-slate-600 font-mono">
-              <span>0% (All Chunks)</span>
-              <span>Default (~45%)</span>
-              <span>95% (Exact Matches)</span>
-           </div>
-        </div>
-
-        <div class="mt-8 flex justify-end gap-3">
+        <!-- General Settings (Removed Accuracy Slider per request) -->
+        <div class="mt-8 flex justify-end gap-3 pt-4 border-t border-slate-800">
           <button (click)="cancel()" class="px-4 py-2 text-xs font-mono text-slate-400 hover:text-white transition-colors">CANCEL</button>
           <button (click)="save()" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 text-white font-bold rounded shadow-lg text-xs font-mono">
             SAVE CONFIGURATION
@@ -189,11 +167,6 @@ export class SettingsModalComponent {
     return base + (color === 'green' 
       ? 'bg-slate-800 text-green-400 shadow-sm border border-slate-700' 
       : 'bg-slate-800 text-blue-400 shadow-sm border border-slate-700');
-  }
-
-  updateScore(event: Event) {
-    const val = (event.target as HTMLInputElement).value;
-    this.config.minRelevanceScore = parseFloat(val);
   }
 
   isHttps() {

@@ -93,6 +93,11 @@ import { VectorStoreService } from '../services/vector-store.service';
 
               <!-- Content -->
               <div [innerHTML]="msg.content | markdown"></div>
+              
+              <!-- Cursor for active streaming -->
+              @if (isGenerating() && msg === lastMessage()) {
+                 <span class="inline-block w-2 h-4 bg-green-500 animate-pulse ml-1 align-middle"></span>
+              }
 
               <!-- Sources (RAG Citation) -->
               @if (msg.sources && msg.sources.length > 0) {
@@ -120,8 +125,9 @@ import { VectorStoreService } from '../services/vector-store.service';
           </div>
         }
 
-        @if (isGenerating()) {
-          <div class="flex justify-start">
+        <!-- Progress Indicator (Only when retrieval/preparing, not during text gen) -->
+        @if (isGenerating() && step() !== 'generating') {
+          <div class="flex justify-start animate-fade-in-up">
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 flex items-center gap-3">
               <div class="flex space-x-1">
                  <span class="relative flex h-3 w-3">
@@ -131,7 +137,6 @@ import { VectorStoreService } from '../services/vector-store.service';
               </div>
               <span class="text-xs font-mono text-green-400">
                 @if (step() === 'retrieving') { SEARCHING DEEP INDEX... }
-                @else { SYNTHESIZING RESPONSE... }
               </span>
             </div>
           </div>
@@ -190,6 +195,12 @@ export class ChatInterfaceComponent implements AfterViewChecked {
   // Bind directly to the service's current session messages
   messages = computed(() => this.chatService.currentSession()?.messages || []);
   currentSessionTitle = computed(() => this.chatService.currentSession()?.title || 'New Chat');
+  
+  // Helper to identify the last message for the cursor effect
+  lastMessage = computed(() => {
+    const msgs = this.messages();
+    return msgs.length > 0 ? msgs[msgs.length - 1] : null;
+  });
 
   isGenerating = signal(false);
   step = signal<'idle' | 'retrieving' | 'generating'>('idle');
@@ -265,7 +276,7 @@ export class ChatInterfaceComponent implements AfterViewChecked {
         this.step.set('retrieving');
         
         try {
-          const userMinScore = this.llmService.config().minRelevanceScore;
+          const userMinScore = this.llmService.MIN_RELEVANCE_SCORE;
           
           if (this.vectorStore.docCount() === 0) {
              // Case: User wants RAG but no files
@@ -286,11 +297,11 @@ export class ChatInterfaceComponent implements AfterViewChecked {
                 const bestMatch = Math.max(...rawChunks.map(c => c.score));
                 const warningMsg: ChatMessage = {
                   role: 'system',
-                  content: `⚠️ **RAG Filter Warning**: Found relevant code (Max Score: ${(bestMatch*100).toFixed(0)}%), but below Threshold (${(userMinScore*100).toFixed(0)}%). Lower strictness in settings?`,
+                  content: `⚠️ **RAG Filter**: Found matches (Best: ${(bestMatch*100).toFixed(0)}%), but they were below the relevance quality threshold (${(userMinScore*100).toFixed(0)}%). Proceeding without specific code context.`,
                   timestamp: new Date()
                 };
                 this.chatService.addMessageToCurrent(warningMsg);
-                contextBlock = "No code context available (Filtered by strictness settings).";
+                contextBlock = "No high-quality code context found.";
              } else {
                const sourceMap = new Map<string, number>();
                relevantChunks.forEach(c => {
@@ -330,9 +341,8 @@ export class ChatInterfaceComponent implements AfterViewChecked {
 
       this.step.set('generating');
 
-      // 2. LLM Generation
+      // 2. Prepare System Prompt
       let systemPrompt = `You are an advanced software engineer.`;
-      
       if (this.useRag) {
         systemPrompt += `
 User Query: ${userText}
@@ -349,30 +359,40 @@ Instructions:
       } else {
         systemPrompt += `
 User Query: ${userText}
-
-Note: The user has DISABLED code retrieval for this message. Answer based on general knowledge or previous conversation context. Do not hallucinate code from the current project if you haven't seen it.
+Note: The user has DISABLED code retrieval for this message. Answer based on general knowledge.
 `;
       }
 
-      // Convert ChatHistory messages to simple format for LLM Service
-      const historyForLlm = this.messages().map(m => ({ role: m.role, content: m.content }));
-      
-      const responseText = await this.llmService.generateCompletion(
-        historyForLlm,
-        systemPrompt
-      );
-
+      // 3. Create placeholder for streaming response
       this.chatService.addMessageToCurrent({
         role: 'assistant',
-        content: responseText,
+        content: '', // Start empty
         sources: sources.length > 0 ? sources : undefined,
         timestamp: new Date()
       });
 
+      // 4. Stream Generation
+      const historyForLlm = this.messages()
+        .slice(0, -1) // Exclude the empty assistant message we just added
+        .map(m => ({ role: m.role, content: m.content }));
+      
+      let fullContent = '';
+      
+      try {
+        for await (const chunk of this.llmService.generateCompletionStream(historyForLlm, systemPrompt)) {
+           fullContent += chunk;
+           this.chatService.updateLastMessage(fullContent);
+           // Force scroll during generation to keep latest text in view
+           this.scrollToBottom(); 
+        }
+      } catch (streamError: any) {
+        this.chatService.updateLastMessage(fullContent + `\n\n[ERROR INTERRUPTION: ${streamError.message}]`);
+      }
+
     } catch (error) {
       this.chatService.addMessageToCurrent({
         role: 'system',
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown failure'}`,
+        content: `Critical Error: ${error instanceof Error ? error.message : 'Unknown failure'}`,
         timestamp: new Date()
       });
     } finally {
@@ -382,13 +402,18 @@ Note: The user has DISABLED code retrieval for this message. Answer based on gen
   }
 
   ngAfterViewChecked() {
-    this.scrollToBottom();
+    // Only scroll if we are not manually scrolling up (simplification: just scroll)
+    if (this.isGenerating()) {
+      this.scrollToBottom();
+    }
   }
 
   scrollToBottom(): void {
     try {
       if (this.scrollContainer) {
-        this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+        const el = this.scrollContainer.nativeElement;
+        // Simple auto-scroll logic
+        el.scrollTop = el.scrollHeight;
       }
     } catch(err) { }
   }

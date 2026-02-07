@@ -16,19 +16,20 @@ export interface LlmConfig {
   // Gemini Settings
   geminiChatModel: string;
   geminiEmbeddingModel: string;
-
-  // Retrieval Settings
-  minRelevanceScore: number; // 0.0 to 1.0
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class LlmService {
+  // Hardcoded "Best Solution" threshold
+  // 0.55 filters out noise while keeping relevant code context
+  public readonly MIN_RELEVANCE_SCORE = 0.55;
+
   // Configuration State
   config = signal<LlmConfig>({
-    chatProvider: 'gemini',
-    embeddingProvider: 'gemini', // Can be switched to 'lm-studio' independently
+    chatProvider: 'gemini',        // Default: Online Smart Model
+    embeddingProvider: 'lm-studio', // Default: Local Embeddings (Privacy/Free)
     
     // LM Studio Defaults
     lmStudioUrl: 'http://localhost:1234/v1',
@@ -38,8 +39,6 @@ export class LlmService {
     // Gemini Defaults
     geminiChatModel: 'gemini-2.5-flash',
     geminiEmbeddingModel: 'text-embedding-004',
-    
-    minRelevanceScore: 0.45 // Default to 45% similarity
   });
 
   private geminiClient: GoogleGenAI;
@@ -117,39 +116,59 @@ export class LlmService {
     }
   }
 
-  // --- GENERATION ---
+  // --- GENERATION (STREAMING) ---
 
-  async generateCompletion(messages: { role: string, content: string }[], systemInstruction?: string): Promise<string> {
+  async *generateCompletionStream(
+    messages: { role: string, content: string }[], 
+    systemInstruction?: string
+  ): AsyncGenerator<string, void, unknown> {
     const conf = this.config();
 
-    // Use the specific Chat Provider setting
     if (conf.chatProvider === 'gemini') {
+      // --- GEMINI STREAMING ---
       const apiKey = this.getApiKey();
       if (!apiKey || apiKey === 'MISSING_KEY_PLACEHOLDER') {
          throw new Error("Gemini API Key is missing. Check environment variables.");
       }
 
-      const lastMsg = messages[messages.length - 1].content;
+      const geminiContents = messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
       
-      const response = await this.geminiClient.models.generateContent({
-        model: conf.geminiChatModel,
-        contents: lastMsg,
-        config: {
-          systemInstruction: systemInstruction,
-          temperature: 0.3
+      try {
+        const responseStream = await this.geminiClient.models.generateContentStream({
+          model: conf.geminiChatModel,
+          contents: geminiContents,
+          config: {
+            systemInstruction: systemInstruction,
+            temperature: 0.3
+          }
+        });
+
+        for await (const chunk of responseStream) {
+          const text = chunk.text;
+          if (text) {
+            yield text;
+          }
         }
-      });
-      return response.text || '';
+      } catch (error: any) {
+        console.error("Gemini Streaming Error:", error);
+        throw error;
+      }
 
     } else {
-      // LM Studio / Local Chat
+      // --- LM STUDIO / LOCAL STREAMING ---
       const apiMessages = [
         { role: 'system', content: systemInstruction || 'You are a helpful coding assistant.' },
         ...messages
       ];
 
+      let response: Response;
       try {
-        const response = await fetch(`${conf.lmStudioUrl}/chat/completions`, {
+        response = await fetch(`${conf.lmStudioUrl}/chat/completions`, {
           method: 'POST',
           mode: 'cors',
           headers: { 'Content-Type': 'application/json' },
@@ -157,24 +176,68 @@ export class LlmService {
             model: conf.lmStudioChatModel, 
             messages: apiMessages,
             temperature: 0.3,
-            stream: false
+            stream: true // Enable streaming
           })
         });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`LM Studio Chat Error (${response.status}): ${errText}`);
-        }
-        
-        const data = await response.json();
-        return data.choices[0].message.content;
       } catch (e: any) {
-        const msg = e.message || String(e);
-        if (msg.includes('Failed to fetch')) {
+        if (String(e).includes('Failed to fetch')) {
              throw new Error(`Connection to Local Model failed (${conf.lmStudioUrl}). Is it running?`);
         }
         throw e;
       }
+
+      if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`LM Studio Chat Error (${response.status}): ${errText}`);
+      }
+      
+      if (!response.body) throw new Error('ReadableStream not supported in this browser.');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data: ')) continue;
+            
+            const dataStr = trimmed.slice(6); // Remove 'data: '
+            if (dataStr === '[DONE]') continue;
+
+            try {
+              const json = JSON.parse(dataStr);
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) {
+                yield content;
+              }
+            } catch (parseError) {
+              console.warn('Error parsing SSE JSON', parseError);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
     }
+  }
+
+  // Keep non-streaming version for backward compatibility or simple tasks
+  async generateCompletion(messages: { role: string, content: string }[], systemInstruction?: string): Promise<string> {
+    let fullText = '';
+    for await (const chunk of this.generateCompletionStream(messages, systemInstruction)) {
+      fullText += chunk;
+    }
+    return fullText;
   }
 }

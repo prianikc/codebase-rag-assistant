@@ -84,7 +84,7 @@ interface FileNode {
         <!-- Import Controls -->
         <div class="p-4 gap-2 flex flex-col border-b border-slate-800 shrink-0">
           <div class="flex gap-2">
-            <!-- Open Local Dir -->
+            <!-- Open Folder -->
             <label class="
               flex-1 flex flex-col items-center justify-center py-2 px-1
               bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded 
@@ -94,7 +94,7 @@ interface FileNode {
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mb-1 text-yellow-400 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
-              Open Dir
+              Folder
               <input 
                 #folderInput
                 type="file" 
@@ -102,11 +102,31 @@ interface FileNode {
                 directory 
                 multiple 
                 class="hidden" 
-                (change)="onFolderSelected($event, folderInput)"
+                (change)="onFilesSelected($event, folderInput)"
               >
             </label>
 
-            <!-- Toggle GitHub Input -->
+            <!-- Open Files -->
+            <label class="
+              flex-1 flex flex-col items-center justify-center py-2 px-1
+              bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded 
+              cursor-pointer transition-all text-[10px] font-mono uppercase font-bold tracking-wider text-center
+              group
+            ">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mb-1 text-blue-400 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Files
+              <input 
+                #filesInput
+                type="file" 
+                multiple 
+                class="hidden" 
+                (change)="onFilesSelected($event, filesInput)"
+              >
+            </label>
+
+            <!-- GitHub -->
             <button 
               (click)="toggleRepoInput()"
               class="
@@ -150,7 +170,7 @@ interface FileNode {
           }
 
           @if (kbService.progressStatus()) {
-            <div class="text-[9px] text-orange-300 font-mono text-center animate-pulse mt-2">
+            <div class="text-[9px] text-orange-300 font-mono text-center animate-pulse mt-2 break-all">
               {{ kbService.progressStatus() }}
             </div>
           }
@@ -304,10 +324,10 @@ export class FileExplorerComponent {
     this.kbService.ingestGitHubRepo(this.repoUrl.trim());
   }
 
-  onFolderSelected(event: Event, input: HTMLInputElement) {
+  onFilesSelected(event: Event, input: HTMLInputElement) {
     if (input.files && input.files.length > 0) {
       this.kbService.ingestFiles(input.files);
-      input.value = '';
+      input.value = ''; // Reset to allow same file selection again
     }
   }
 
@@ -315,8 +335,8 @@ export class FileExplorerComponent {
     if (confirm('Are you sure you want to clear the Vector Database? This will remove all indexed code context.')) {
       this.vectorStore.clear();
       // Clean up file list too since they are no longer indexed
-      this.kbService.totalFiles.set(0);
-      this.kbService.filePaths.set([]);
+      // Removed: Manual set of computed signals (filePaths, totalFiles) is invalid and unnecessary.
+      // The reactivity graph handles this update automatically when vectorStore changes.
     }
   }
 

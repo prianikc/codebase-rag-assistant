@@ -127,10 +127,14 @@ export class ChatHistoryService {
       const raw = localStorage.getItem(this.STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Fix dates if necessary (JSON parses dates as strings)
-        // We actully store timestamps as numbers in interface to avoid serialization issues, 
-        // but ChatMessage has Date.
-        // Let's ensure messages structure is correct.
+        // Hydrate Date objects from ISO strings
+        parsed.forEach((session: any) => {
+          session.messages.forEach((msg: any) => {
+            if (typeof msg.timestamp === 'string') {
+              msg.timestamp = new Date(msg.timestamp);
+            }
+          });
+        });
         this.sessions.set(parsed);
       }
 
