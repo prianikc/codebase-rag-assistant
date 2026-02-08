@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { KnowledgeBaseService } from '../services/knowledge-base.service';
 import { VectorStoreService } from '../services/vector-store.service';
 import { ChatHistoryService } from '../services/chat-history.service';
+import { ConfirmationModalComponent } from './confirmation-modal.component';
 
 interface FileNode {
   name: string;
@@ -17,10 +18,20 @@ interface FileNode {
 @Component({
   selector: 'app-file-explorer',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmationModalComponent],
   template: `
-    <div class="flex flex-col h-full bg-slate-900 border-r border-slate-700 text-slate-300 w-full select-none">
+    <div class="flex flex-col h-full bg-slate-900 border-r border-slate-700 text-slate-300 w-full select-none relative">
       
+      <!-- Confirmation Modal Overlay -->
+      @if (showConfirmModal()) {
+        <app-confirmation-modal
+          [title]="confirmTitle()"
+          [message]="confirmMessage()"
+          (confirm)="onConfirmAction()"
+          (cancel)="onCancelAction()"
+        ></app-confirmation-modal>
+      }
+
       <!-- Top Bar: Tabs -->
       <div class="flex border-b border-slate-700 bg-slate-950">
         <button 
@@ -53,7 +64,7 @@ interface FileNode {
                  <!-- Clear Vectors Button -->
                  @if (vectorStore.docCount() > 0) {
                    <button 
-                     (click)="clearVectors()"
+                     (click)="confirmClearVectors()"
                      title="Clear Vector Database"
                      class="text-slate-600 hover:text-red-500 transition-colors"
                    >
@@ -152,11 +163,11 @@ interface FileNode {
                    type="text" 
                    [(ngModel)]="repoUrl"
                    placeholder="owner/repo"
-                   (keydown.enter)="loadRepo()"
+                   (keydown.enter)="prepareRepoLoad()"
                    class="w-full bg-slate-950 border border-slate-600 rounded px-2 py-1 text-[10px] font-mono text-white focus:border-purple-500 outline-none"
                  >
                  <button 
-                   (click)="loadRepo()"
+                   (click)="prepareRepoLoad()"
                    [disabled]="kbService.isIngesting() || !repoUrl.trim()"
                    class="bg-purple-600 hover:bg-purple-500 text-white px-2 rounded disabled:opacity-50"
                  >
@@ -299,6 +310,15 @@ export class FileExplorerComponent {
   showRepoInput = false;
   repoUrl = '';
 
+  // Confirmation Modal State
+  showConfirmModal = signal(false);
+  confirmTitle = signal('');
+  confirmMessage = signal('');
+  
+  // Staging for confirmation
+  private pendingAction: 'repo' | 'clear' | 'delete_session' | null = null;
+  private pendingSessionId: string | null = null;
+
   // Tree Logic
   treeNodes = computed(() => {
     const paths = this.kbService.filePaths();
@@ -319,31 +339,69 @@ export class FileExplorerComponent {
     this.showRepoInput = !this.showRepoInput;
   }
 
-  loadRepo() {
-    if (!this.repoUrl.trim()) return;
-    this.kbService.ingestGitHubRepo(this.repoUrl.trim());
-  }
+  // --- CONFIRMATION HANDLERS ---
 
   onFilesSelected(event: Event, input: HTMLInputElement) {
     if (input.files && input.files.length > 0) {
-      this.kbService.ingestFiles(input.files);
-      input.value = ''; // Reset to allow same file selection again
+      // Create a permanent array copy immediately
+      const files = Array.from(input.files);
+      
+      // START INGESTION IMMEDIATELY (Skip Confirm)
+      this.kbService.ingestFiles(files);
+      
+      // Reset input immediately so change event fires again next time.
+      input.value = ''; 
     }
   }
 
-  clearVectors() {
-    if (confirm('Are you sure you want to clear the Vector Database? This will remove all indexed code context.')) {
-      this.vectorStore.clear();
-      // Clean up file list too since they are no longer indexed
-      // Removed: Manual set of computed signals (filePaths, totalFiles) is invalid and unnecessary.
-      // The reactivity graph handles this update automatically when vectorStore changes.
-    }
+  prepareRepoLoad() {
+    if (!this.repoUrl.trim()) return;
+    this.pendingAction = 'repo';
+    this.confirmTitle.set('Ingest Repository');
+    this.confirmMessage.set(`Download and index contents from ${this.repoUrl}? This will overwrite the current vector database.`);
+    this.showConfirmModal.set(true);
   }
+
+  confirmClearVectors() {
+    this.pendingAction = 'clear';
+    this.confirmTitle.set('Clear Database');
+    this.confirmMessage.set('Are you sure you want to delete all indexed code vectors? This action cannot be undone.');
+    this.showConfirmModal.set(true);
+  }
+
+  // --- MODAL CALLBACKS ---
+
+  onConfirmAction() {
+    this.showConfirmModal.set(false);
+
+    if (this.pendingAction === 'repo' && this.repoUrl) {
+      this.kbService.ingestGitHubRepo(this.repoUrl.trim());
+    } else if (this.pendingAction === 'clear') {
+      this.vectorStore.clear();
+    } else if (this.pendingAction === 'delete_session' && this.pendingSessionId) {
+      this.chatService.deleteSession(this.pendingSessionId);
+    }
+
+    // Cleanup
+    this.pendingAction = null;
+    this.pendingSessionId = null;
+  }
+
+  onCancelAction() {
+    this.showConfirmModal.set(false);
+    this.pendingAction = null;
+    this.pendingSessionId = null;
+  }
+
+  // --- OTHER ---
 
   deleteSession(id: string) {
-    if (confirm('Delete this chat history?')) {
-      this.chatService.deleteSession(id);
-    }
+    this.pendingAction = 'delete_session';
+    this.pendingSessionId = id;
+    
+    this.confirmTitle.set('Delete Chat Session');
+    this.confirmMessage.set('Are you sure you want to delete this chat history? This cannot be undone.');
+    this.showConfirmModal.set(true);
   }
 
   toggleNode(node: FileNode) {

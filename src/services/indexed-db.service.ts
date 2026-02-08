@@ -8,11 +8,13 @@ export class IndexedDbService {
   private readonly DB_NAME = 'RagAppVectorDb';
   private readonly VERSION = 1;
   private db: IDBDatabase | null = null;
+  private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
-    if (this.db) return;
+    if (this.db) return Promise.resolve();
+    if (this.initPromise) return this.initPromise;
 
-    return new Promise((resolve, reject) => {
+    this.initPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
       request.onupgradeneeded = (event: any) => {
@@ -35,12 +37,15 @@ export class IndexedDbService {
         reject('Failed to open database');
       };
     });
+
+    return this.initPromise;
   }
 
   async saveDocuments(docs: VectorDocument[]): Promise<void> {
     await this.init();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['vectors'], 'readwrite');
+      if (!this.db) return reject('DB not initialized');
+      const transaction = this.db.transaction(['vectors'], 'readwrite');
       const store = transaction.objectStore('vectors');
 
       docs.forEach(doc => store.put(doc));
@@ -53,31 +58,45 @@ export class IndexedDbService {
   async getAllDocuments(): Promise<VectorDocument[]> {
     await this.init();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['vectors'], 'readonly');
-      const store = transaction.objectStore('vectors');
-      const request = store.getAll();
+      if (!this.db) return reject('DB not initialized');
+      try {
+        const transaction = this.db.transaction(['vectors'], 'readonly');
+        const store = transaction.objectStore('vectors');
+        const request = store.getAll();
 
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = (e) => reject(e);
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = (e) => reject(e);
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 
   async clearDocuments(): Promise<void> {
     await this.init();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['vectors'], 'readwrite');
+      if (!this.db) return reject('DB not initialized');
+      
+      const transaction = this.db.transaction(['vectors'], 'readwrite');
       const store = transaction.objectStore('vectors');
       const request = store.clear();
 
-      request.onsuccess = () => resolve();
-      request.onerror = (e) => reject(e);
+      request.onsuccess = () => {
+        console.log('[IndexedDB] Vectors cleared successfully');
+        resolve();
+      };
+      request.onerror = (e) => {
+        console.error('[IndexedDB] Clear Failed', e);
+        reject(e);
+      };
     });
   }
 
   async saveMeta(key: string, value: any): Promise<void> {
     await this.init();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['meta'], 'readwrite');
+      if (!this.db) return reject('DB not initialized');
+      const transaction = this.db.transaction(['meta'], 'readwrite');
       const store = transaction.objectStore('meta');
       store.put({ key, value });
       transaction.oncomplete = () => resolve();
@@ -88,12 +107,17 @@ export class IndexedDbService {
   async getMeta(key: string): Promise<any> {
     await this.init();
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['meta'], 'readonly');
-      const store = transaction.objectStore('meta');
-      const request = store.get(key);
+      if (!this.db) return reject('DB not initialized');
+      try {
+        const transaction = this.db.transaction(['meta'], 'readonly');
+        const store = transaction.objectStore('meta');
+        const request = store.get(key);
 
-      request.onsuccess = () => resolve(request.result ? request.result.value : null);
-      request.onerror = (e) => reject(e);
+        request.onsuccess = () => resolve(request.result ? request.result.value : null);
+        request.onerror = (e) => reject(e);
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 }

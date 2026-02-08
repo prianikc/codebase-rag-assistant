@@ -1,58 +1,68 @@
 import { Injectable, signal } from '@angular/core';
 import { GoogleGenAI } from '@google/genai';
 
-export type LlmProvider = 'gemini' | 'lm-studio';
+export type LlmProvider = 'gemini' | 'openai';
 
 export interface LlmConfig {
-  // Split providers for Hybrid Mode
+  // We can mix and match providers
   chatProvider: LlmProvider;
   embeddingProvider: LlmProvider;
-  
-  // LM Studio / OpenAI Compatible Settings
-  lmStudioUrl: string; 
-  lmStudioChatModel: string;
-  lmStudioEmbeddingModel: string;
 
-  // Gemini Settings
-  geminiChatModel: string;
-  geminiEmbeddingModel: string;
+  // --- GENERIC OPENAI-COMPATIBLE CONFIG ---
+  // Works with: OpenAI, Groq, DeepSeek, LM Studio, Ollama, vLLM, etc.
+  openai: {
+    baseUrl: string;      // e.g. "https://api.openai.com/v1" or "http://localhost:1234/v1"
+    apiKey: string;       // "sk-..."
+    chatModel: string;    // "gpt-4o", "llama-3", "mixtral-8x7b"
+    embeddingModel: string; // "text-embedding-3-small", "nomic-embed-text"
+  };
+
+  // --- GOOGLE GEMINI CONFIG ---
+  gemini: {
+    apiKey: string; // If empty, tries process.env
+    chatModel: string;
+    embeddingModel: string;
+  };
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class LlmService {
-  // Hardcoded "Best Solution" threshold
-  // 0.55 filters out noise while keeping relevant code context
   public readonly MIN_RELEVANCE_SCORE = 0.55;
 
-  // Configuration State
+  // Default Configuration
   config = signal<LlmConfig>({
-    chatProvider: 'gemini',        // Default: Online Smart Model
-    embeddingProvider: 'lm-studio', // Default: Local Embeddings (Privacy/Free)
+    chatProvider: 'gemini',
+    embeddingProvider: 'openai', // Default to OpenAI/Local for embeddings usually
     
-    // LM Studio Defaults
-    lmStudioUrl: 'http://localhost:1234/v1',
-    lmStudioChatModel: 'local-model', 
-    lmStudioEmbeddingModel: 'text-embedding-nomic-embed-text-v1.5',
+    openai: {
+      baseUrl: 'http://localhost:1234/v1',
+      apiKey: '',
+      chatModel: 'local-model', 
+      embeddingModel: 'text-embedding-nomic-embed-text-v1.5',
+    },
     
-    // Gemini Defaults
-    geminiChatModel: 'gemini-2.5-flash',
-    geminiEmbeddingModel: 'text-embedding-004',
+    gemini: {
+      apiKey: '',
+      chatModel: 'gemini-2.5-flash',
+      embeddingModel: 'text-embedding-004',
+    }
   });
 
-  private geminiClient: GoogleGenAI;
-
-  constructor() {
-    const apiKey = this.getApiKey();
-    this.geminiClient = new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY_PLACEHOLDER' });
-  }
+  constructor() {}
 
   updateConfig(newConfig: Partial<LlmConfig>) {
     this.config.update(c => ({ ...c, ...newConfig }));
   }
 
-  private getApiKey(): string {
+  // --- HELPERS ---
+
+  private getGeminiKey(): string {
+    const c = this.config().gemini;
+    if (c.apiKey) return c.apiKey; // User override
+    
+    // Fallback to env
     if (typeof process !== 'undefined' && process.env && process.env['API_KEY']) {
       return process.env['API_KEY'];
     }
@@ -63,54 +73,64 @@ export class LlmService {
     return '';
   }
 
+  private getGeminiClient(): GoogleGenAI {
+    const key = this.getGeminiKey();
+    return new GoogleGenAI({ apiKey: key || 'MISSING_KEY' });
+  }
+
   // --- EMBEDDINGS ---
 
   async getEmbedding(text: string): Promise<number[]> {
     const conf = this.config();
-    
-    // Use the specific Embedding Provider setting
-    if (conf.embeddingProvider === 'gemini') {
-      const apiKey = this.getApiKey();
-      if (!apiKey || apiKey === 'MISSING_KEY_PLACEHOLDER') {
-        throw new Error("Gemini API Key is missing. Check environment variables.");
-      }
+    const provider = conf.embeddingProvider;
 
+    if (provider === 'gemini') {
+      const client = this.getGeminiClient();
       try {
-        const response = await this.geminiClient.models.embedContent({
-          model: conf.geminiEmbeddingModel,
+        const response = await client.models.embedContent({
+          model: conf.gemini.embeddingModel,
           contents: text,
         });
         return response.embeddings?.[0]?.values || [];
       } catch (e: any) {
-        console.error("Gemini Embedding Error", e);
-        throw new Error(`Gemini Error (${conf.geminiEmbeddingModel}): ${e.message || e}`);
+        throw new Error(`Gemini Embedding Error: ${e.message || e}`);
       }
     } else {
-      // LM Studio / Local
+      // OPENAI COMPATIBLE
+      const { baseUrl, apiKey, embeddingModel } = conf.openai;
+      
+      const headers: Record<string, string> = { 
+        'Content-Type': 'application/json' 
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
       try {
-        const response = await fetch(`${conf.lmStudioUrl}/embeddings`, {
+        // Handle trailing slash
+        const url = baseUrl.endsWith('/') ? `${baseUrl}embeddings` : `${baseUrl}/embeddings`;
+        
+        const response = await fetch(url, {
           method: 'POST',
-          mode: 'cors', // Explicitly request CORS
-          headers: { 'Content-Type': 'application/json' },
+          mode: 'cors',
+          headers,
           body: JSON.stringify({
             input: text,
-            model: conf.lmStudioEmbeddingModel 
+            model: embeddingModel
           })
         });
         
         if (!response.ok) {
            const errText = await response.text();
-           throw new Error(`LM Studio Error (${response.status}): ${errText}`);
+           throw new Error(`OpenAI API Error (${response.status}): ${errText}`);
         }
         
         const data = await response.json();
         return data.data[0].embedding;
       } catch (e: any) {
-        const msg = e.message || String(e);
-        if (msg.includes('Failed to fetch')) {
-             throw new Error(`Connection to Local Model failed (${conf.lmStudioUrl}). If using HTTPS, ensure Mixed Content is allowed or use a Tunnel.`);
+        if (String(e).includes('Failed to fetch')) {
+             throw new Error(`Connection failed to ${baseUrl}. Check URL and CORS.`);
         }
-        console.error("LM Studio Embedding Error.", e);
         throw e;
       }
     }
@@ -123,14 +143,11 @@ export class LlmService {
     systemInstruction?: string
   ): AsyncGenerator<string, void, unknown> {
     const conf = this.config();
+    const provider = conf.chatProvider;
 
-    if (conf.chatProvider === 'gemini') {
-      // --- GEMINI STREAMING ---
-      const apiKey = this.getApiKey();
-      if (!apiKey || apiKey === 'MISSING_KEY_PLACEHOLDER') {
-         throw new Error("Gemini API Key is missing. Check environment variables.");
-      }
-
+    if (provider === 'gemini') {
+      const client = this.getGeminiClient();
+      
       const geminiContents = messages
         .filter(m => m.role !== 'system')
         .map(m => ({
@@ -139,8 +156,8 @@ export class LlmService {
         }));
       
       try {
-        const responseStream = await this.geminiClient.models.generateContentStream({
-          model: conf.geminiChatModel,
+        const responseStream = await client.models.generateContentStream({
+          model: conf.gemini.chatModel,
           contents: geminiContents,
           config: {
             systemInstruction: systemInstruction,
@@ -149,49 +166,53 @@ export class LlmService {
         });
 
         for await (const chunk of responseStream) {
-          const text = chunk.text;
-          if (text) {
-            yield text;
-          }
+          if (chunk.text) yield chunk.text;
         }
       } catch (error: any) {
-        console.error("Gemini Streaming Error:", error);
         throw error;
       }
 
     } else {
-      // --- LM STUDIO / LOCAL STREAMING ---
+      // OPENAI COMPATIBLE
+      const { baseUrl, apiKey, chatModel } = conf.openai;
+
       const apiMessages = [
         { role: 'system', content: systemInstruction || 'You are a helpful coding assistant.' },
         ...messages
       ];
 
+      const headers: Record<string, string> = { 
+        'Content-Type': 'application/json' 
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
+      const url = baseUrl.endsWith('/') ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+
       let response: Response;
       try {
-        response = await fetch(`${conf.lmStudioUrl}/chat/completions`, {
+        response = await fetch(url, {
           method: 'POST',
           mode: 'cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
-            model: conf.lmStudioChatModel, 
+            model: chatModel, 
             messages: apiMessages,
             temperature: 0.3,
-            stream: true // Enable streaming
+            stream: true
           })
         });
       } catch (e: any) {
-        if (String(e).includes('Failed to fetch')) {
-             throw new Error(`Connection to Local Model failed (${conf.lmStudioUrl}). Is it running?`);
-        }
-        throw e;
+         throw new Error(`Connection failed to ${baseUrl}. Check URL/Internet.`);
       }
 
       if (!response.ok) {
           const errText = await response.text();
-          throw new Error(`LM Studio Chat Error (${response.status}): ${errText}`);
+          throw new Error(`OpenAI API Error (${response.status}): ${errText}`);
       }
       
-      if (!response.body) throw new Error('ReadableStream not supported in this browser.');
+      if (!response.body) throw new Error('ReadableStream not supported.');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -206,23 +227,21 @@ export class LlmService {
           buffer += chunk;
           
           const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          buffer = lines.pop() || ''; 
 
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed || !trimmed.startsWith('data: ')) continue;
             
-            const dataStr = trimmed.slice(6); // Remove 'data: '
+            const dataStr = trimmed.slice(6); 
             if (dataStr === '[DONE]') continue;
 
             try {
               const json = JSON.parse(dataStr);
               const content = json.choices?.[0]?.delta?.content;
-              if (content) {
-                yield content;
-              }
+              if (content) yield content;
             } catch (parseError) {
-              console.warn('Error parsing SSE JSON', parseError);
+              // ignore invalid chunks
             }
           }
         }
@@ -232,7 +251,6 @@ export class LlmService {
     }
   }
 
-  // Keep non-streaming version for backward compatibility or simple tasks
   async generateCompletion(messages: { role: string, content: string }[], systemInstruction?: string): Promise<string> {
     let fullText = '';
     for await (const chunk of this.generateCompletionStream(messages, systemInstruction)) {

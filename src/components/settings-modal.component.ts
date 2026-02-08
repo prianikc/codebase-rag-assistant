@@ -1,4 +1,4 @@
-import { Component, inject, output, signal } from '@angular/core';
+import { Component, inject, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LlmService, LlmConfig, LlmProvider } from '../services/llm.service';
@@ -8,145 +8,191 @@ import { LlmService, LlmConfig, LlmProvider } from '../services/llm.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <!-- Backdrop -->
-    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
-         (click)="onBackdropClick()">
-      
-      <!-- Modal Content -->
-      <div class="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto"
-           (click)="$event.stopPropagation()">
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" (click)="onBackdropClick()">
+      <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]" (click)="$event.stopPropagation()">
         
-        <!-- Close Button -->
-        <button (click)="cancel()" class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <h2 class="text-xl font-bold text-white mb-6 font-mono flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          SYSTEM CONFIGURATION
-        </h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          <!-- LEFT COLUMN: Chat Intelligence -->
-          <div class="space-y-4">
-            <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2">1. Chat Intelligence</h3>
-            
-            <div>
-              <label class="block text-[10px] font-mono uppercase text-slate-500 mb-2">Provider</label>
-              <div class="flex bg-slate-950 p-1 rounded-md border border-slate-800">
-                <button (click)="config.chatProvider = 'gemini'" [class]="getBtnClass(config.chatProvider === 'gemini', 'green')">
-                  GEMINI (CLOUD)
-                </button>
-                <button (click)="config.chatProvider = 'lm-studio'" [class]="getBtnClass(config.chatProvider === 'lm-studio', 'blue')">
-                  LOCAL (LM STUDIO)
-                </button>
-              </div>
-            </div>
-
-            @if (config.chatProvider === 'gemini') {
-              <div class="animate-fade-in-down space-y-3">
-                <label class="block text-[10px] uppercase font-mono text-slate-500">Gemini Model</label>
-                <input [(ngModel)]="config.geminiChatModel" list="gem-chat" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-green-400 font-mono focus:border-green-500 outline-none">
-                <datalist id="gem-chat">
-                  <option value="gemini-2.5-flash"></option>
-                  <option value="gemini-1.5-flash"></option>
-                </datalist>
-              </div>
-            } @else {
-              <div class="animate-fade-in-down space-y-3">
-                <label class="block text-[10px] uppercase font-mono text-slate-500">Local Model ID</label>
-                <input [(ngModel)]="config.lmStudioChatModel" type="text" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-blue-400 font-mono focus:border-blue-500 outline-none">
-              </div>
-            }
-          </div>
-
-          <!-- RIGHT COLUMN: Embeddings (Vector Store) -->
-          <div class="space-y-4">
-            <h3 class="text-sm font-bold text-slate-300 border-b border-slate-700 pb-2">2. Embeddings (RAG)</h3>
-            
-            <div>
-              <label class="block text-[10px] font-mono uppercase text-slate-500 mb-2">Provider</label>
-              <div class="flex bg-slate-950 p-1 rounded-md border border-slate-800">
-                <button (click)="config.embeddingProvider = 'gemini'" [class]="getBtnClass(config.embeddingProvider === 'gemini', 'green')">
-                  GEMINI
-                </button>
-                <button (click)="config.embeddingProvider = 'lm-studio'" [class]="getBtnClass(config.embeddingProvider === 'lm-studio', 'blue')">
-                  LOCAL
-                </button>
-              </div>
-            </div>
-
-            @if (config.embeddingProvider === 'gemini') {
-              <div class="animate-fade-in-down space-y-3">
-                <label class="block text-[10px] uppercase font-mono text-slate-500">Gemini Model</label>
-                <input [(ngModel)]="config.geminiEmbeddingModel" list="gem-embed" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-green-400 font-mono focus:border-green-500 outline-none">
-                <datalist id="gem-embed">
-                  <option value="text-embedding-004"></option>
-                  <option value="embedding-001"></option>
-                </datalist>
-              </div>
-            } @else {
-              <div class="animate-fade-in-down space-y-3">
-                <label class="block text-[10px] uppercase font-mono text-slate-500">Local Model ID</label>
-                <input [(ngModel)]="config.lmStudioEmbeddingModel" type="text" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-blue-400 font-mono focus:border-blue-500 outline-none">
-                <p class="text-[9px] text-slate-500">Suggested: text-embedding-nomic-embed-text-v1.5</p>
-              </div>
-            }
-          </div>
-
-        </div>
-
-        <!-- GLOBAL LOCAL SETTINGS -->
-        @if (config.chatProvider === 'lm-studio' || config.embeddingProvider === 'lm-studio') {
-           <div class="mt-6 pt-4 border-t border-slate-800 animate-fade-in-down">
-             <h3 class="text-xs font-bold text-slate-400 font-mono mb-3">LOCAL SERVER CONFIGURATION (Common)</h3>
-             
-             <div class="flex gap-2">
-                <div class="flex-1">
-                  <label class="block text-[10px] uppercase font-mono text-slate-500 mb-1">API Base URL</label>
-                  <input 
-                    [(ngModel)]="config.lmStudioUrl" 
-                    type="text" 
-                    placeholder="http://localhost:1234/v1"
-                    class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none"
-                  >
-                </div>
-                <div class="flex items-end">
-                  <button (click)="testConnection()" [disabled]="testingConnection()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono rounded border border-slate-700 transition-colors">
-                    {{ testingConnection() ? 'Checking...' : 'Test Connection' }}
-                  </button>
-                </div>
-             </div>
-
-             <!-- Connection Feedback -->
-             @if (connectionStatus()) {
-               <div [class]="'mt-2 p-2 rounded text-[10px] font-mono border ' + 
-                 (connectionStatus()?.success ? 'bg-green-900/20 border-green-800 text-green-400' : 'bg-red-900/20 border-red-800 text-red-400')">
-                 {{ connectionStatus()?.message }}
-                 @if (!connectionStatus()?.success && isHttps()) {
-                    <div class="mt-1 text-orange-400 font-bold">
-                       Warning: You are on HTTPS. Browsers often block HTTP (localhost) requests.
-                       Try disabling "Shields" or "Safe Browsing" for this tab, or use a tunneling service (ngrok).
-                    </div>
-                 }
-               </div>
-             }
-           </div>
-        }
-
-        <!-- General Settings (Removed Accuracy Slider per request) -->
-        <div class="mt-8 flex justify-end gap-3 pt-4 border-t border-slate-800">
-          <button (click)="cancel()" class="px-4 py-2 text-xs font-mono text-slate-400 hover:text-white transition-colors">CANCEL</button>
-          <button (click)="save()" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 text-white font-bold rounded shadow-lg text-xs font-mono">
-            SAVE CONFIGURATION
+        <!-- Header -->
+        <div class="p-5 border-b border-slate-700 flex justify-between items-center bg-slate-950 rounded-t-xl">
+          <h2 class="text-lg font-mono font-bold text-white flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            LLM CONFIGURATION
+          </h2>
+          <button (click)="cancel()" class="text-slate-500 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          <!-- PRESETS ROW -->
+          <div class="space-y-2">
+            <label class="text-[10px] text-slate-500 font-mono uppercase font-bold tracking-wider">Quick Presets</label>
+            <div class="flex flex-wrap gap-2">
+               <button (click)="applyPreset('gemini')" 
+                 [class]="getPresetClass('gemini')"
+                 class="flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono transition-all">
+                 <div class="w-2 h-2 rounded-full bg-green-500"></div> Google Gemini
+               </button>
+
+               <button (click)="applyPreset('openai')" 
+                 [class]="getPresetClass('openai')"
+                 class="flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono transition-all">
+                 <div class="w-2 h-2 rounded-full bg-blue-500"></div> OpenAI
+               </button>
+               
+               <button (click)="applyPreset('groq')" 
+                 [class]="getPresetClass('openai')" 
+                 class="flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono transition-all">
+                 <div class="w-2 h-2 rounded-full bg-orange-500"></div> Groq
+               </button>
+
+               <button (click)="applyPreset('lmstudio')" 
+                 [class]="getPresetClass('openai')" 
+                 class="flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono transition-all">
+                 <div class="w-2 h-2 rounded-full bg-purple-500"></div> LM Studio (Local)
+               </button>
+
+               <button (click)="applyPreset('ollama')" 
+                 [class]="getPresetClass('openai')" 
+                 class="flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono transition-all">
+                 <div class="w-2 h-2 rounded-full bg-white"></div> Ollama
+               </button>
+            </div>
+          </div>
+
+          <hr class="border-slate-800">
+
+          <!-- CONFIG FORM -->
+          <div class="space-y-4 animate-fade-in bg-slate-800/30 p-4 rounded-lg border border-slate-800">
+            
+            <!-- Connection Info -->
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                Connection Details
+                <span class="text-[10px] font-normal px-2 py-0.5 rounded bg-slate-700 text-slate-300 font-mono uppercase">
+                  {{ config.chatProvider === 'gemini' ? 'Google SDK' : 'OpenAI Compatible' }}
+                </span>
+              </h3>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+               <!-- Base URL (Hidden for Gemini) -->
+               @if (config.chatProvider !== 'gemini') {
+                 <div class="space-y-1">
+                    <label class="text-[10px] text-slate-500 font-mono uppercase">Base URL</label>
+                    <input type="text" [(ngModel)]="proxyBaseUrl" 
+                      placeholder="https://api.openai.com/v1"
+                      class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-blue-300 font-mono focus:border-blue-500 outline-none transition-colors">
+                 </div>
+               }
+
+               <!-- API Key -->
+               <div class="space-y-1">
+                  <label class="text-[10px] text-slate-500 font-mono uppercase">API Key {{ config.chatProvider !== 'gemini' && config.openai.baseUrl.includes('localhost') ? '(Optional)' : '' }}</label>
+                  <input type="password" [(ngModel)]="proxyApiKey" 
+                    [placeholder]="config.chatProvider === 'gemini' ? 'Enter Gemini API Key' : 'sk-...'"
+                    class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-white font-mono focus:border-purple-500 outline-none transition-colors">
+               </div>
+            </div>
+
+            <!-- Models -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+               
+               <!-- CHAT MODEL -->
+               <div class="space-y-1">
+                  <label class="text-[10px] text-slate-500 font-mono uppercase">Chat Model ID</label>
+                  
+                  <div class="flex gap-2">
+                    <!-- 1. Gemini: Fixed List -->
+                    @if (config.chatProvider === 'gemini') {
+                       <select [(ngModel)]="proxyChatModel" 
+                               class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-white font-mono focus:border-purple-500 outline-none transition-colors cursor-pointer appearance-none">
+                          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                       </select>
+                    }
+                    <!-- 2. OpenAI: Fetched List -->
+                    @else if (hasFetchedModels()) {
+                       <select [(ngModel)]="proxyChatModel" 
+                               class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-white font-mono focus:border-purple-500 outline-none transition-colors cursor-pointer appearance-none">
+                          @for (model of fetchedModels(); track model) {
+                             <option [value]="model">{{ model }}</option>
+                          }
+                       </select>
+                    } 
+                    <!-- 3. OpenAI: Manual Input (Default) -->
+                    @else {
+                      <input type="text" [(ngModel)]="proxyChatModel" 
+                        class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-white font-mono focus:border-purple-500 outline-none transition-colors"
+                        placeholder="e.g. gpt-4o">
+                    }
+
+                     <!-- Fetch Button -->
+                     @if (config.chatProvider !== 'gemini') {
+                       <button (click)="fetchModels()" [disabled]="fetchingModels()" 
+                         class="px-3 bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors flex items-center justify-center"
+                         title="Fetch Models">
+                         <span [class.animate-spin]="fetchingModels()">⟳</span>
+                       </button>
+                     }
+                  </div>
+               </div>
+
+               <!-- EMBEDDING MODEL -->
+               <div class="space-y-1">
+                  <label class="text-[10px] text-slate-500 font-mono uppercase">Embedding Model ID</label>
+                  
+                  <!-- 1. Gemini -->
+                   @if (config.chatProvider === 'gemini') {
+                      <select [(ngModel)]="proxyEmbeddingModel" 
+                              class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-white font-mono focus:border-purple-500 outline-none transition-colors cursor-pointer appearance-none">
+                         <option value="text-embedding-004">text-embedding-004</option>
+                      </select>
+                   }
+                   <!-- 2. OpenAI Fetched -->
+                   @else if (hasFetchedModels()) {
+                      <select [(ngModel)]="proxyEmbeddingModel" 
+                              class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-white font-mono focus:border-purple-500 outline-none transition-colors cursor-pointer appearance-none">
+                         @for (model of fetchedModels(); track model) {
+                            <option [value]="model">{{ model }}</option>
+                         }
+                      </select>
+                   } 
+                   <!-- 3. OpenAI Manual -->
+                   @else {
+                      <input type="text" [(ngModel)]="proxyEmbeddingModel" 
+                        class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-white font-mono focus:border-purple-500 outline-none transition-colors"
+                        placeholder="e.g. text-embedding-3-small">
+                   }
+               </div>
+            </div>
+            
+            <!-- Connection Status Message -->
+            @if (connectionMsg()) {
+               <div class="text-[10px] font-mono px-3 py-2 rounded border" 
+                 [class.bg-green-900_20]="connectionSuccess()" [class.border-green-800]="connectionSuccess()" [class.text-green-400]="connectionSuccess()"
+                 [class.bg-red-900_20]="!connectionSuccess()" [class.border-red-800]="!connectionSuccess()" [class.text-red-400]="!connectionSuccess()">
+                  {{ connectionMsg() }}
+               </div>
+            }
+
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-5 border-t border-slate-700 bg-slate-950 rounded-b-xl flex justify-end gap-3">
+           <button (click)="cancel()" class="px-4 py-2 text-xs font-mono text-slate-400 hover:text-white transition-colors">CANCEL</button>
+           <button (click)="save()" class="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded shadow-lg text-xs font-mono transition-colors">
+             SAVE & CONNECT
+           </button>
+        </div>
+
       </div>
     </div>
   `
@@ -154,52 +200,175 @@ import { LlmService, LlmConfig, LlmProvider } from '../services/llm.service';
 export class SettingsModalComponent {
   private llmService = inject(LlmService);
   close = output<void>();
-  
-  config: LlmConfig = { ...this.llmService.config() };
-  
-  // Connection Testing State
-  testingConnection = signal(false);
-  connectionStatus = signal<{success: boolean, message: string} | null>(null);
 
-  getBtnClass(active: boolean, color: 'green' | 'blue') {
-    const base = 'flex-1 py-2 px-3 rounded text-xs font-mono transition-all duration-200 ';
-    if (!active) return base + 'text-slate-500 hover:text-slate-300';
-    return base + (color === 'green' 
-      ? 'bg-slate-800 text-green-400 shadow-sm border border-slate-700' 
-      : 'bg-slate-800 text-blue-400 shadow-sm border border-slate-700');
+  // Deep clone config
+  config: LlmConfig = JSON.parse(JSON.stringify(this.llmService.config()));
+  
+  // UI State
+  fetchingModels = signal(false);
+  connectionMsg = signal('');
+  connectionSuccess = signal(false);
+  
+  // Signal to store models
+  fetchedModels = signal<string[]>([]);
+  
+  // Computed to easily check if we should show dropdown
+  hasFetchedModels = computed(() => this.fetchedModels().length > 0);
+
+  // --- PROXY GETTERS/SETTERS ---
+
+  get proxyApiKey(): string {
+    return this.config.chatProvider === 'gemini' ? this.config.gemini.apiKey : this.config.openai.apiKey;
+  }
+  set proxyApiKey(val: string) {
+    if (this.config.chatProvider === 'gemini') this.config.gemini.apiKey = val;
+    else this.config.openai.apiKey = val;
   }
 
-  isHttps() {
-    return window.location.protocol === 'https:';
+  get proxyBaseUrl(): string {
+    return this.config.openai.baseUrl;
+  }
+  set proxyBaseUrl(val: string) {
+    this.config.openai.baseUrl = val;
   }
 
-  async testConnection() {
-    this.testingConnection.set(true);
-    this.connectionStatus.set(null);
-    try {
-      // Attempt to list models from LM Studio / OpenAI compatible endpoint
-      // Usually GET /v1/models
-      const baseUrl = this.config.lmStudioUrl.replace(/\/chat\/completions$/, '').replace(/\/$/, '');
-      const testUrl = `${baseUrl}/models`;
-      
-      const res = await fetch(testUrl, { method: 'GET', mode: 'cors' });
-      if (res.ok) {
-        this.connectionStatus.set({ success: true, message: 'SUCCESS: Connected to Local Server.' });
-      } else {
-        this.connectionStatus.set({ success: false, message: `Connected but server returned ${res.status}.` });
-      }
-    } catch (e: any) {
-      let msg = e.message;
-      if (msg.includes('Failed to fetch')) {
-        msg = 'Connection Failed. Browser blocked the request or Server is down.';
-      }
-      this.connectionStatus.set({ success: false, message: msg });
-    } finally {
-      this.testingConnection.set(false);
+  get proxyChatModel(): string {
+    return this.config.chatProvider === 'gemini' ? this.config.gemini.chatModel : this.config.openai.chatModel;
+  }
+  set proxyChatModel(val: string) {
+    if (this.config.chatProvider === 'gemini') this.config.gemini.chatModel = val;
+    else this.config.openai.chatModel = val;
+  }
+
+  get proxyEmbeddingModel(): string {
+    return this.config.embeddingProvider === 'gemini' ? this.config.gemini.embeddingModel : this.config.openai.embeddingModel;
+  }
+  set proxyEmbeddingModel(val: string) {
+    if (this.config.chatProvider === 'gemini') {
+       this.config.gemini.embeddingModel = val;
+    } else {
+       this.config.openai.embeddingModel = val;
     }
   }
 
-  onBackdropClick() { this.cancel(); }
-  save() { this.llmService.updateConfig(this.config); this.close.emit(); }
+  // --- ACTIONS ---
+
+  getPresetClass(type: string) {
+    const isGemini = this.config.chatProvider === 'gemini';
+    const isTypeGemini = type === 'gemini';
+    
+    // Simple logic: if provider matches, highlight
+    if (isGemini && isTypeGemini) return 'bg-slate-700 border-slate-500 text-white shadow-md';
+    if (!isGemini && !isTypeGemini) return 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white';
+    
+    return 'bg-slate-900 border-slate-800 text-slate-500 hover:bg-slate-800';
+  }
+
+  applyPreset(type: 'gemini' | 'openai' | 'groq' | 'lmstudio' | 'ollama') {
+    this.connectionMsg.set(''); 
+    this.fetchedModels.set([]); // Reset models on preset change to force re-fetch or manual entry
+
+    if (type === 'gemini') {
+      this.config.chatProvider = 'gemini';
+      this.config.embeddingProvider = 'gemini';
+      if (!this.config.gemini.chatModel) this.config.gemini.chatModel = 'gemini-2.5-flash';
+      if (!this.config.gemini.embeddingModel) this.config.gemini.embeddingModel = 'text-embedding-004';
+    } else {
+      this.config.chatProvider = 'openai';
+      this.config.embeddingProvider = 'openai';
+      
+      switch(type) {
+        case 'openai':
+          this.config.openai.baseUrl = 'https://api.openai.com/v1';
+          this.config.openai.chatModel = 'gpt-4o';
+          this.config.openai.embeddingModel = 'text-embedding-3-small';
+          break;
+        case 'groq':
+          this.config.openai.baseUrl = 'https://api.groq.com/openai/v1';
+          this.config.openai.chatModel = 'llama3-70b-8192';
+          this.config.openai.embeddingModel = ''; 
+          break;
+        case 'lmstudio':
+          this.config.openai.baseUrl = 'http://localhost:1234/v1';
+          this.config.openai.chatModel = 'local-model';
+          this.config.openai.embeddingModel = 'text-embedding-nomic-embed-text-v1.5';
+          break;
+        case 'ollama':
+          this.config.openai.baseUrl = 'http://localhost:11434/v1';
+          this.config.openai.chatModel = 'llama3';
+          this.config.openai.embeddingModel = 'nomic-embed-text';
+          break;
+      }
+    }
+  }
+
+  async fetchModels() {
+    if (this.config.chatProvider === 'gemini') return; 
+
+    this.fetchingModels.set(true);
+    this.connectionMsg.set('Connecting to ' + this.config.openai.baseUrl + '...');
+    this.connectionSuccess.set(false);
+    this.fetchedModels.set([]);
+
+    const { baseUrl, apiKey } = this.config.openai;
+    const cleanUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    
+    try {
+      const headers: any = {};
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+      const res = await fetch(`${cleanUrl}/models`, { 
+        method: 'GET', 
+        headers,
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      const responseBody = await res.json();
+      
+      // Handle standard OpenAI format { data: [...] } or just array [...]
+      const list = Array.isArray(responseBody) ? responseBody : (responseBody.data || []);
+      
+      if (list.length > 0) {
+        // Extract IDs securely
+        const ids = list
+          .map((item: any) => item.id)
+          .filter((id: any) => typeof id === 'string')
+          .sort();
+          
+        this.fetchedModels.set(ids);
+        
+        // Auto-fix current selection if it's not in list, or keep it if it is
+        if (!ids.includes(this.proxyChatModel)) {
+            // Optional: You might want to default to the first one, or just let user pick
+            // this.proxyChatModel = ids[0];
+        }
+
+        this.connectionSuccess.set(true);
+        this.connectionMsg.set(`Success: Found ${ids.length} models.`);
+      } else {
+        this.connectionSuccess.set(true);
+        this.connectionMsg.set('Connected, but no models returned.');
+      }
+
+    } catch (e: any) {
+      this.connectionSuccess.set(false);
+      this.connectionMsg.set(`Error: ${e.message}`);
+    } finally {
+      this.fetchingModels.set(false);
+    }
+  }
+
+  onBackdropClick() { this.close.emit(); }
   cancel() { this.close.emit(); }
+  
+  save() { 
+    this.llmService.updateConfig(this.config);
+    this.close.emit();
+  }
 }

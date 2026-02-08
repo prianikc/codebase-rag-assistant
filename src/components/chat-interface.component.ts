@@ -34,7 +34,7 @@ import { VectorStoreService } from '../services/vector-store.service';
         <button 
           (click)="toggleSettings()"
           class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700 hover:bg-slate-800 rounded text-xs font-mono text-slate-300 transition-all">
-          <span [innerHTML]="providerLabel()"></span>
+          <span [innerHTML]="modelLabel()"></span>
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -125,7 +125,7 @@ import { VectorStoreService } from '../services/vector-store.service';
           </div>
         }
 
-        <!-- Progress Indicator (Only when retrieval/preparing, not during text gen) -->
+        <!-- Progress Indicator -->
         @if (isGenerating() && step() !== 'generating') {
           <div class="flex justify-start animate-fade-in-up">
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 flex items-center gap-3">
@@ -136,7 +136,7 @@ import { VectorStoreService } from '../services/vector-store.service';
                   </span>
               </div>
               <span class="text-xs font-mono text-green-400">
-                @if (step() === 'retrieving') { SEARCHING DEEP INDEX... }
+                @if (step() === 'retrieving') { ANALYZING QUERY & SEARCHING CODEBASE... }
               </span>
             </div>
           </div>
@@ -153,10 +153,27 @@ import { VectorStoreService } from '../services/vector-store.service';
                <div class="w-8 h-4 bg-slate-700 rounded-full peer-checked:bg-green-600 transition-colors"></div>
                <div class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
              </div>
-             <span class="text-[10px] font-mono uppercase text-slate-400 group-hover:text-slate-200 transition-colors select-none">
-               Search Codebase
+             <span class="text-[10px] font-mono uppercase transition-colors select-none"
+                   [class.text-green-400]="useRag" [class.text-slate-400]="!useRag">
+               RAG (Search Codebase)
              </span>
            </label>
+           
+           @if (vectorStore.docCount() === 0) {
+              <span class="text-[9px] text-orange-400/80 font-mono flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+                No Files Indexed (Chat Only)
+              </span>
+           } @else if (useRag) {
+              <span class="text-[9px] text-green-400/80 font-mono flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                Context Enabled
+              </span>
+           }
         </div>
 
         <div class="flex gap-2 relative">
@@ -192,11 +209,9 @@ export class ChatInterfaceComponent implements AfterViewChecked {
 
   userInput = '';
   
-  // Bind directly to the service's current session messages
   messages = computed(() => this.chatService.currentSession()?.messages || []);
   currentSessionTitle = computed(() => this.chatService.currentSession()?.title || 'New Chat');
   
-  // Helper to identify the last message for the cursor effect
   lastMessage = computed(() => {
     const msgs = this.messages();
     return msgs.length > 0 ? msgs[msgs.length - 1] : null;
@@ -205,9 +220,9 @@ export class ChatInterfaceComponent implements AfterViewChecked {
   isGenerating = signal(false);
   step = signal<'idle' | 'retrieving' | 'generating'>('idle');
   showSettings = false;
-  useRag = false;
+  
+  useRag = true;
 
-  // Starter presets
   presets = [
     "Расскажи о проекте!",
     "Покажи кусок кода со сложной логикой!",
@@ -216,23 +231,19 @@ export class ChatInterfaceComponent implements AfterViewChecked {
   ];
 
   constructor() {
-    // Auto-scroll when messages change
     effect(() => {
       this.messages();
       setTimeout(() => this.scrollToBottom(), 50);
     });
   }
 
-  // Computed visual label for the current provider state
-  providerLabel = computed(() => {
+  modelLabel = computed(() => {
     const c = this.llmService.config();
-    const chat = c.chatProvider === 'gemini' ? '<span class="text-green-400">GEMINI</span>' : '<span class="text-blue-400">LOCAL</span>';
-    const embed = c.embeddingProvider === 'gemini' ? '<span class="text-green-400">GEMINI</span>' : '<span class="text-blue-400">LOCAL</span>';
+    const isGemini = c.chatProvider === 'gemini';
+    const modelName = isGemini ? c.gemini.chatModel : c.openai.chatModel;
+    const color = isGemini ? 'text-green-400' : 'text-blue-400';
     
-    if (c.chatProvider === c.embeddingProvider) {
-      return `● ${chat}`;
-    }
-    return `● ${chat} + ${embed}`;
+    return `<span class="${color} font-bold">${modelName.toUpperCase()}</span>`;
   });
 
   toggleSettings() {
@@ -258,7 +269,6 @@ export class ChatInterfaceComponent implements AfterViewChecked {
     const userText = this.userInput;
     this.userInput = '';
 
-    // Add User Message to History
     this.chatService.addMessageToCurrent({ 
       role: 'user', 
       content: userText, 
@@ -271,79 +281,52 @@ export class ChatInterfaceComponent implements AfterViewChecked {
     let sources: { path: string, score: number }[] = [];
 
     try {
-      // 1. Vector Search (RAG) - Only if enabled
-      if (this.useRag) {
+      if (this.useRag && this.vectorStore.docCount() > 0) {
         this.step.set('retrieving');
         
         try {
           const userMinScore = this.llmService.MIN_RELEVANCE_SCORE;
           
-          if (this.vectorStore.docCount() === 0) {
-             // Case: User wants RAG but no files
-             const warningMsg: ChatMessage = {
-               role: 'system',
-               content: `⚠️ **RAG Warning**: You requested a codebase search, but no files have been ingested yet. Please ingest a folder or repo in the "Files" tab.`,
-               timestamp: new Date()
-             };
-             this.chatService.addMessageToCurrent(warningMsg);
-             contextBlock = "No code context available (No files ingested).";
-
-          } else {
-             // Get Raw Results
-             const rawChunks = await this.kbService.search(userText, 40, 0.0);
-             const relevantChunks = rawChunks.filter(c => c.score >= userMinScore);
+           const rawChunks = await this.kbService.search(userText, 40, 0.0);
+           const relevantChunks = rawChunks.filter(c => c.score >= userMinScore);
+           
+           if (rawChunks.length > 0 && relevantChunks.length === 0) {
+              contextBlock = "No high-quality code context found.";
+           } else {
+             const sourceMap = new Map<string, number>();
+             relevantChunks.forEach(c => {
+                const current = sourceMap.get(c.source) || 0;
+                if (c.score > current) sourceMap.set(c.source, c.score);
+             });
              
-             if (rawChunks.length > 0 && relevantChunks.length === 0) {
-                const bestMatch = Math.max(...rawChunks.map(c => c.score));
-                const warningMsg: ChatMessage = {
-                  role: 'system',
-                  content: `⚠️ **RAG Filter**: Found matches (Best: ${(bestMatch*100).toFixed(0)}%), but they were below the relevance quality threshold (${(userMinScore*100).toFixed(0)}%). Proceeding without specific code context.`,
-                  timestamp: new Date()
-                };
-                this.chatService.addMessageToCurrent(warningMsg);
-                contextBlock = "No high-quality code context found.";
-             } else {
-               const sourceMap = new Map<string, number>();
-               relevantChunks.forEach(c => {
-                  const current = sourceMap.get(c.source) || 0;
-                  if (c.score > current) sourceMap.set(c.source, c.score);
-               });
-               
-               sources = Array.from(sourceMap.entries())
-                 .map(([path, score]) => ({ path, score }))
-                 .sort((a, b) => b.score - a.score);
+             sources = Array.from(sourceMap.entries())
+               .map(([path, score]) => ({ path, score }))
+               .sort((a, b) => b.score - a.score);
 
-               if (relevantChunks.length > 0) {
-                 contextBlock = relevantChunks.map(c => 
-                   `FILENAME: ${c.source} (Match: ${(c.score * 100).toFixed(0)}%)\nCONTENT:\n${c.content}\n---`
-                 ).join('\n');
-               } else {
-                  contextBlock = "No specific code context found (Low similarity scores).";
-                  // Fallback to file structure if query is general
-                  if (userText.toLowerCase().includes('project') || userText.toLowerCase().includes('structure')) {
-                     const fileTree = this.kbService.filePaths().slice(0, 200).join('\n');
-                     contextBlock += `\n\nExisting File Structure:\n${fileTree}`;
-                  }
-               }
+             if (relevantChunks.length > 0) {
+               contextBlock = relevantChunks.map(c => 
+                 `FILENAME: ${c.source} (Match: ${(c.score * 100).toFixed(0)}%)\nCONTENT:\n${c.content}\n---`
+               ).join('\n');
+             } else {
+                contextBlock = "No specific code context found (Low similarity scores).";
+                // Fallback structure
+                if (userText.toLowerCase().includes('project') || userText.toLowerCase().includes('structure')) {
+                   const fileTree = this.kbService.filePaths().slice(0, 200).join('\n');
+                   contextBlock += `\n\nExisting File Structure:\n${fileTree}`;
+                }
              }
-          }
+           }
+          
         } catch (searchError: any) {
-           this.chatService.addMessageToCurrent({
-             role: 'system',
-             content: `⚠️ **RAG System Warning**: ${searchError.message}`,
-             timestamp: new Date()
-           });
-           this.isGenerating.set(false);
-           this.step.set('idle');
-           return; 
+           console.error("RAG Search Failed", searchError);
         }
       }
 
       this.step.set('generating');
 
-      // 2. Prepare System Prompt
       let systemPrompt = `You are an advanced software engineer.`;
-      if (this.useRag) {
+      
+      if (contextBlock && this.useRag && this.vectorStore.docCount() > 0) {
         systemPrompt += `
 User Query: ${userText}
 
@@ -359,21 +342,19 @@ Instructions:
       } else {
         systemPrompt += `
 User Query: ${userText}
-Note: The user has DISABLED code retrieval for this message. Answer based on general knowledge.
+Note: No code context provided (files not loaded or RAG disabled). Answer based on general knowledge.
 `;
       }
 
-      // 3. Create placeholder for streaming response
       this.chatService.addMessageToCurrent({
         role: 'assistant',
-        content: '', // Start empty
+        content: '', 
         sources: sources.length > 0 ? sources : undefined,
         timestamp: new Date()
       });
 
-      // 4. Stream Generation
       const historyForLlm = this.messages()
-        .slice(0, -1) // Exclude the empty assistant message we just added
+        .slice(0, -1)
         .map(m => ({ role: m.role, content: m.content }));
       
       let fullContent = '';
@@ -382,17 +363,16 @@ Note: The user has DISABLED code retrieval for this message. Answer based on gen
         for await (const chunk of this.llmService.generateCompletionStream(historyForLlm, systemPrompt)) {
            fullContent += chunk;
            this.chatService.updateLastMessage(fullContent);
-           // Force scroll during generation to keep latest text in view
            this.scrollToBottom(); 
         }
       } catch (streamError: any) {
-        this.chatService.updateLastMessage(fullContent + `\n\n[ERROR INTERRUPTION: ${streamError.message}]`);
+        this.chatService.updateLastMessage(fullContent + `\n\n[ERROR: ${streamError.message}]`);
       }
 
     } catch (error) {
       this.chatService.addMessageToCurrent({
         role: 'system',
-        content: `Critical Error: ${error instanceof Error ? error.message : 'Unknown failure'}`,
+        content: `System Error: ${error instanceof Error ? error.message : 'Unknown'}`,
         timestamp: new Date()
       });
     } finally {
@@ -402,7 +382,6 @@ Note: The user has DISABLED code retrieval for this message. Answer based on gen
   }
 
   ngAfterViewChecked() {
-    // Only scroll if we are not manually scrolling up (simplification: just scroll)
     if (this.isGenerating()) {
       this.scrollToBottom();
     }
@@ -412,7 +391,6 @@ Note: The user has DISABLED code retrieval for this message. Answer based on gen
     try {
       if (this.scrollContainer) {
         const el = this.scrollContainer.nativeElement;
-        // Simple auto-scroll logic
         el.scrollTop = el.scrollHeight;
       }
     } catch(err) { }

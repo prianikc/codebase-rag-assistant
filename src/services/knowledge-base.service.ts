@@ -87,9 +87,9 @@ export class KnowledgeBaseService {
   /**
    * Main Entry Point 1: File Input (Drag & Drop or Dialog)
    */
-  async ingestFiles(fileList: FileList) {
-    // CRITICAL FIX: Snapshot the files immediately!
-    const files = Array.from(fileList);
+  async ingestFiles(filesInput: FileList | File[]) {
+    // CRITICAL FIX: Ensure we have a standard array and snapshot it immediately
+    const files = Array.isArray(filesInput) ? filesInput : Array.from(filesInput);
     
     console.log(`[KnowledgeBase] Received ${files.length} files. Starting ingestion...`);
 
@@ -112,9 +112,6 @@ export class KnowledgeBaseService {
         const path = file.webkitRelativePath || file.name;
         
         if (this.isAllowed(path)) {
-           // REMOVED: MIME type check causing issues with valid files.
-           // Relying on extension filtering (binaryExtensions) is safer for codebases.
-
            try {
              const content = await this.readFile(file);
              // Basic binary check: null bytes
@@ -371,7 +368,7 @@ export class KnowledgeBaseService {
 
   private getCurrentSignature(): string {
     const c = this.llmService.config();
-    const model = c.embeddingProvider === 'gemini' ? c.geminiEmbeddingModel : c.lmStudioEmbeddingModel;
+    const model = c.embeddingProvider === 'gemini' ? c.gemini.embeddingModel : c.openai.embeddingModel;
     return `${c.embeddingProvider}:${model}`;
   }
 }
