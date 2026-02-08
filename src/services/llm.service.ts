@@ -4,24 +4,30 @@ import { GoogleGenAI } from '@google/genai';
 export type LlmProvider = 'gemini' | 'openai';
 
 export interface LlmConfig {
-  // We can mix and match providers
+  // Master Switches
   chatProvider: LlmProvider;
   embeddingProvider: LlmProvider;
 
-  // --- GENERIC OPENAI-COMPATIBLE CONFIG ---
-  // Works with: OpenAI, Groq, DeepSeek, LM Studio, Ollama, vLLM, etc.
-  openai: {
-    baseUrl: string;      // e.g. "https://api.openai.com/v1" or "http://localhost:1234/v1"
-    apiKey: string;       // "sk-..."
-    chatModel: string;    // "gpt-4o", "llama-3", "mixtral-8x7b"
-    embeddingModel: string; // "text-embedding-3-small", "nomic-embed-text"
-  };
+  // --- CONFIGURATIONS ---
+  // Now we treat them more similarly in the UI, but store distinct data 
+  // to avoid overwriting a user's local URL with a cloud URL when switching presets.
 
-  // --- GOOGLE GEMINI CONFIG ---
   gemini: {
-    apiKey: string; // If empty, tries process.env
+    apiKey: string; 
     chatModel: string;
     embeddingModel: string;
+  };
+
+  openaiChat: {
+    baseUrl: string;      
+    apiKey: string;       
+    model: string;    
+  };
+
+  openaiEmbedding: {
+    baseUrl: string;
+    apiKey: string;
+    model: string;
   };
 }
 
@@ -34,19 +40,24 @@ export class LlmService {
   // Default Configuration
   config = signal<LlmConfig>({
     chatProvider: 'gemini',
-    embeddingProvider: 'openai', // Default to OpenAI/Local for embeddings usually
-    
-    openai: {
-      baseUrl: 'http://localhost:1234/v1',
-      apiKey: '',
-      chatModel: 'local-model', 
-      embeddingModel: 'text-embedding-nomic-embed-text-v1.5',
-    },
+    embeddingProvider: 'openai', 
     
     gemini: {
-      apiKey: '',
+      apiKey: '', // User will input this manually now
       chatModel: 'gemini-2.5-flash',
       embeddingModel: 'text-embedding-004',
+    },
+
+    openaiChat: {
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: '',
+      model: 'gpt-4o',
+    },
+
+    openaiEmbedding: {
+      baseUrl: 'http://localhost:11434/v1', 
+      apiKey: '',
+      model: 'nomic-embed-text',
     }
   });
 
@@ -60,9 +71,10 @@ export class LlmService {
 
   private getGeminiKey(): string {
     const c = this.config().gemini;
-    if (c.apiKey) return c.apiKey; // User override
+    // 1. Priority: Manual Input
+    if (c.apiKey && c.apiKey.trim()) return c.apiKey; 
     
-    // Fallback to env
+    // 2. Fallback: Environment Variable (for dev convenience)
     if (typeof process !== 'undefined' && process.env && process.env['API_KEY']) {
       return process.env['API_KEY'];
     }
@@ -75,6 +87,9 @@ export class LlmService {
 
   private getGeminiClient(): GoogleGenAI {
     const key = this.getGeminiKey();
+    if (!key) {
+      console.warn("Gemini API Key is missing. Please enter it in settings.");
+    }
     return new GoogleGenAI({ apiKey: key || 'MISSING_KEY' });
   }
 
@@ -96,43 +111,50 @@ export class LlmService {
         throw new Error(`Gemini Embedding Error: ${e.message || e}`);
       }
     } else {
-      // OPENAI COMPATIBLE
-      const { baseUrl, apiKey, embeddingModel } = conf.openai;
-      
-      const headers: Record<string, string> = { 
-        'Content-Type': 'application/json' 
-      };
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`;
-      }
+      // OPENAI COMPATIBLE (Local or Remote)
+      return this.fetchOpenAiCompatibleEmbedding(
+        text,
+        conf.openaiEmbedding.baseUrl,
+        conf.openaiEmbedding.apiKey,
+        conf.openaiEmbedding.model
+      );
+    }
+  }
 
-      try {
-        // Handle trailing slash
-        const url = baseUrl.endsWith('/') ? `${baseUrl}embeddings` : `${baseUrl}/embeddings`;
-        
-        const response = await fetch(url, {
-          method: 'POST',
-          mode: 'cors',
-          headers,
-          body: JSON.stringify({
-            input: text,
-            model: embeddingModel
-          })
-        });
-        
-        if (!response.ok) {
-           const errText = await response.text();
-           throw new Error(`OpenAI API Error (${response.status}): ${errText}`);
-        }
-        
-        const data = await response.json();
-        return data.data[0].embedding;
-      } catch (e: any) {
-        if (String(e).includes('Failed to fetch')) {
-             throw new Error(`Connection failed to ${baseUrl}. Check URL and CORS.`);
-        }
-        throw e;
+  private async fetchOpenAiCompatibleEmbedding(text: string, baseUrl: string, apiKey: string, model: string): Promise<number[]> {
+    const headers: Record<string, string> = { 
+      'Content-Type': 'application/json' 
+    };
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    try {
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      const url = `${cleanBase}/embeddings`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        headers,
+        body: JSON.stringify({
+          input: text,
+          model: model
+        })
+      });
+      
+      if (!response.ok) {
+         const errText = await response.text();
+         throw new Error(`Embedding API Error (${response.status}): ${errText}`);
       }
+      
+      const data = await response.json();
+      return data.data[0].embedding;
+    } catch (e: any) {
+      if (String(e).includes('Failed to fetch')) {
+           throw new Error(`Connection failed to ${baseUrl}. Check URL and CORS.`);
+      }
+      throw e;
     }
   }
 
@@ -173,8 +195,8 @@ export class LlmService {
       }
 
     } else {
-      // OPENAI COMPATIBLE
-      const { baseUrl, apiKey, chatModel } = conf.openai;
+      // OPENAI COMPATIBLE (Chat)
+      const { baseUrl, apiKey, model } = conf.openaiChat;
 
       const apiMessages = [
         { role: 'system', content: systemInstruction || 'You are a helpful coding assistant.' },
@@ -188,7 +210,8 @@ export class LlmService {
         headers['Authorization'] = `Bearer ${apiKey}`;
       }
 
-      const url = baseUrl.endsWith('/') ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      const url = `${cleanBase}/chat/completions`;
 
       let response: Response;
       try {
@@ -197,7 +220,7 @@ export class LlmService {
           mode: 'cors',
           headers,
           body: JSON.stringify({
-            model: chatModel, 
+            model: model, 
             messages: apiMessages,
             temperature: 0.3,
             stream: true

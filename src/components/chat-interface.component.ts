@@ -240,7 +240,8 @@ export class ChatInterfaceComponent implements AfterViewChecked {
   modelLabel = computed(() => {
     const c = this.llmService.config();
     const isGemini = c.chatProvider === 'gemini';
-    const modelName = isGemini ? c.gemini.chatModel : c.openai.chatModel;
+    // Correctly accessing the openaiChat model property
+    const modelName = isGemini ? c.gemini.chatModel : c.openaiChat.model;
     const color = isGemini ? 'text-green-400' : 'text-blue-400';
     
     return `<span class="${color} font-bold">${modelName.toUpperCase()}</span>`;

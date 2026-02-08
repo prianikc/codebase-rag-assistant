@@ -368,7 +368,8 @@ export class KnowledgeBaseService {
 
   private getCurrentSignature(): string {
     const c = this.llmService.config();
-    const model = c.embeddingProvider === 'gemini' ? c.gemini.embeddingModel : c.openai.embeddingModel;
+    // Correctly accessing the openaiEmbedding model property
+    const model = c.embeddingProvider === 'gemini' ? c.gemini.embeddingModel : c.openaiEmbedding.model;
     return `${c.embeddingProvider}:${model}`;
   }
 }
