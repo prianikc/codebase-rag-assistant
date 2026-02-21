@@ -1,0 +1,35 @@
+/* ============================================
+   Responsive Breakpoints
+   ============================================ */
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 64px;
+        min-width: 64px;
+    }
+
+    .sidebar-logo-text,
+    .sidebar-logo-version,
+    .stats-bar,
+    .tree-node span,
+    .chat-session-title,
+    .chat-session-meta {
+        display: none;
+    }
+
+    .import-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .import-btn span:last-child {
+        display: none;
+    }
+
+    .presets-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,10 @@
+/* Confirmation Modal — Component Styles */
+
+:host {
+    display: block;
+}
+
+/* Modal styles are defined globally in styles.css via
+   .modal-overlay, .modal-card, .modal-header, .modal-footer,
+   .confirm-card, .confirm-body, .confirm-title, .confirm-message, etc.
+   No component-scoped overrides needed. */

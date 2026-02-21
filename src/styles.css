@@ -1,79 +1,21 @@
-/* Global Styles */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ============================================
+   CODEBASE RAG ASSISTANT — Design System
+   Modern glassmorphism + gradient UI
+   ============================================
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #1f2937; 
-}
-::-webkit-scrollbar-thumb {
-  background: #4b5563; 
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #6b7280; 
-}
+   This is the entry-point stylesheet.
+   Each partial is responsible for one area of the UI.
+   Order matters: variables → reset → layout → components → typography → animations → responsive
+   ============================================ */
 
-body {
-  background-color: #0f172a; /* slate-950 */
-  color: #e2e8f0;
-  margin: 0;
-  overflow: hidden;
-}
+/* Fonts loaded via <link> in index.html */
 
-/* --- MARKDOWN STYLES --- */
-
-/* Headings */
-h1, h2, h3, h4 {
-  color: #f1f5f9;
-  font-weight: 700;
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-}
-h1 { font-size: 1.5rem; border-bottom: 1px solid #334155; padding-bottom: 0.25rem; }
-h2 { font-size: 1.25rem; }
-h3 { font-size: 1.1rem; }
-
-/* Text */
-p { margin-bottom: 0.75rem; line-height: 1.6; }
-p:last-child { margin-bottom: 0; }
-
-/* Lists */
-ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
-ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
-li { margin-bottom: 0.25rem; }
-li::marker { color: #94a3b8; }
-
-/* Blockquotes */
-blockquote {
-  border-left: 4px solid #3b82f6;
-  background: rgba(30, 41, 59, 0.4);
-  padding: 0.5rem 1rem;
-  margin: 0.75rem 0;
-  font-style: italic;
-  color: #cbd5e1;
-}
-
-/* Tables */
-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9em; }
-th, td { border: 1px solid #334155; padding: 0.5rem; text-align: left; }
-th { background-color: #1e293b; font-weight: bold; }
-
-/* Code Blocks (Standard & Highlight.js) */
-pre {
-  margin: 1rem 0;
-  border-radius: 0.5rem;
-}
-
-/* Ensure highlight.js classes override Tailwind resets if needed */
-.hljs-comment, .hljs-quote { color: #808080; font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section, .hljs-link { color: #cc7832; font-weight: bold; }
-.hljs-name, .hljs-attribute, .hljs-title, .hljs-selector-id { color: #e8bf6a; }
-.hljs-string, .hljs-meta .hljs-string, .hljs-type, .hljs-built_in, .hljs-number, .hljs-selector-class, .hljs-selector-attr { color: #6a8759; }
-.hljs-title, .hljs-section { color: #ffc66d; }
-.hljs-meta { color: #bbb529; }
+@import './styles/_variables.css';
+@import './styles/_reset.css';
+@import './styles/_animations.css';
+@import './styles/_app-shell.css';
+@import './styles/_sidebar.css';
+@import './styles/_chat.css';
+@import './styles/_modal.css';
+@import './styles/_typography.css';
+@import './styles/_responsive.css';

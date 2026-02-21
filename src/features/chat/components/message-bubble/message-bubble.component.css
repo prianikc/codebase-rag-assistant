@@ -1,0 +1,18 @@
+/* Message Bubble — Component Styles */
+
+:host {
+    display: block;
+}
+
+/* These styles are intentionally empty because message-bubble styles 
+   are defined globally in styles.css via .message-row, .message-bubble, etc.
+   
+   If ViewEncapsulation.None is not used, these classes need to be duplicated here.
+   For now, the component uses the default encapsulation, so we define the 
+   essential styles that were previously global. */
+
+/* The message row and bubble classes are applied from the global stylesheet.
+   No component-scoped styles needed since the parent chat component 
+   provides the layout context. The global styles in styles.css cover:
+   .message-row, .message-bubble, .message-meta, .message-content,
+   .sources-container, .source-chip, .stream-cursor */

@@ -1,12 +1,14 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FileExplorerComponent } from './components/file-explorer.component';
-import { ChatInterfaceComponent } from './components/chat-interface.component';
+import { AppShellComponent } from './features/app-shell';
 
+/**
+ * Root application component
+ * Serves as the entry point and delegates rendering to AppShellComponent
+ */
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FileExplorerComponent, ChatInterfaceComponent],
-  templateUrl: './app.component.html',
+  imports: [AppShellComponent],
+  template: '<app-shell></app-shell>',
 })
 export class AppComponent {}

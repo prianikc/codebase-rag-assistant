@@ -1,0 +1,46 @@
+<div class="input-area">
+    <div class="input-toolbar">
+        <label class="rag-toggle">
+            <div class="rag-toggle-switch">
+                <input type="checkbox" [ngModel]="useRag()" (ngModelChange)="useRagChange.emit($event)">
+                <div class="rag-toggle-track"></div>
+                <div class="rag-toggle-thumb"></div>
+            </div>
+            <span [class]="'rag-toggle-label ' + (useRag() ? 'rag-toggle-label--on' : 'rag-toggle-label--off')">
+                RAG Context
+            </span>
+        </label>
+
+        @if (docCount() === 0) {
+        <span class="rag-status rag-status--warning">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clip-rule="evenodd" />
+            </svg>
+            No Files Indexed
+        </span>
+        } @else if (useRag()) {
+        <span class="rag-status rag-status--active">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd" />
+            </svg>
+            Context Enabled
+        </span>
+        }
+    </div>
+
+    <div class="input-row">
+        <textarea #chatTextarea class="input-field" [ngModel]="value()" (ngModelChange)="valueChange.emit($event)"
+            (keydown.enter)="onEnter($event)" (input)="autoResize($event)" placeholder="Ask about your codebase..." rows="1"></textarea>
+
+        <button class="send-btn" (click)="send.emit()" [disabled]="disabled() || !value().trim()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                    d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+            </svg>
+        </button>
+    </div>
+</div>

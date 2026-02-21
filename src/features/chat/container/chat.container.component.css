@@ -1,0 +1,14 @@
+/* Chat Container — Component Styles */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
+/* Chat-specific styles are defined globally in styles/_chat.css
+   via .chat-header, .messages-area, .empty-state, .presets-grid,
+   .preset-btn, .progress-indicator, etc.
+   No component-scoped overrides needed. */

@@ -1,0 +1,123 @@
+/* ============================================
+   Typography — Markdown & Highlight.js
+   ============================================ */
+
+h1,
+h2,
+h3,
+h4 {
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+h1 {
+    font-size: 1.4rem;
+    border-bottom: 1px solid var(--border-primary);
+    padding-bottom: 0.25rem;
+}
+
+h2 {
+    font-size: 1.2rem;
+}
+
+h3 {
+    font-size: 1.05rem;
+}
+
+ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+li {
+    margin-bottom: 0.25rem;
+}
+
+li::marker {
+    color: var(--text-muted);
+}
+
+blockquote {
+    border-left: 3px solid var(--accent-primary);
+    background: rgba(99, 102, 241, 0.05);
+    padding: 0.5rem 1rem;
+    margin: 0.75rem 0;
+    font-style: italic;
+    color: var(--text-secondary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9em;
+}
+
+th,
+td {
+    border: 1px solid var(--border-primary);
+    padding: 0.5rem;
+    text-align: left;
+}
+
+th {
+    background: var(--bg-tertiary);
+    font-weight: 700;
+}
+
+pre {
+    margin: 1rem 0;
+    border-radius: var(--radius-md);
+}
+
+/* Highlight.js overrides */
+.hljs-comment,
+.hljs-quote {
+    color: #6b7280;
+    font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link {
+    color: #c084fc;
+    font-weight: bold;
+}
+
+.hljs-name,
+.hljs-attribute,
+.hljs-title,
+.hljs-selector-id {
+    color: #f59e0b;
+}
+
+.hljs-string,
+.hljs-meta .hljs-string,
+.hljs-type,
+.hljs-built_in,
+.hljs-number,
+.hljs-selector-class,
+.hljs-selector-attr {
+    color: #34d399;
+}
+
+.hljs-title,
+.hljs-section {
+    color: #60a5fa;
+}
+
+.hljs-meta {
+    color: #f472b6;
+}

@@ -1,0 +1,25 @@
+services:
+  # Frontend App
+  rag-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-assistant
+    ports:
+      - "${APP_PORT:-3000}:80"
+    restart: unless-stopped
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "app.name=rag-assistant"
+      - "app.version=1.0.0"
+
+networks:
+  rag-network:
+    driver: bridge

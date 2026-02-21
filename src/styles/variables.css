@@ -1,0 +1,70 @@
+/* ============================================
+   CSS Variables (Design Tokens)
+   ============================================ */
+
+:root {
+    /* Core palette */
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #0f1524;
+    --bg-tertiary: #141b2d;
+    --bg-card: rgba(20, 27, 45, 0.7);
+    --bg-glass: rgba(15, 21, 36, 0.6);
+    --bg-input: rgba(10, 14, 26, 0.8);
+    --bg-hover: rgba(30, 40, 65, 0.5);
+
+    /* Borders */
+    --border-primary: rgba(56, 72, 110, 0.35);
+    --border-hover: rgba(80, 100, 150, 0.5);
+    --border-active: rgba(99, 179, 237, 0.5);
+
+    /* Text */
+    --text-primary: #e8ecf4;
+    --text-secondary: #8b97b0;
+    --text-muted: #5a677d;
+    --text-inverse: #0a0e1a;
+
+    /* Accents */
+    --accent-primary: #6366f1;
+    --accent-primary-glow: rgba(99, 102, 241, 0.25);
+    --accent-secondary: #06b6d4;
+    --accent-success: #10b981;
+    --accent-success-glow: rgba(16, 185, 129, 0.2);
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+    --accent-purple: #a855f7;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+    --gradient-success: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-glow: 0 0 20px var(--accent-primary-glow);
+
+    /* Spacing & Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Provider colors (for CSS usage) */
+    --color-google: #4285f4;
+    --color-openai: #10a37f;
+    --color-anthropic: #d97706;
+    --color-openrouter: #6366f1;
+    --color-groq: #f97316;
+    --color-mistral: #ff7000;
+    --color-deepseek: #2563eb;
+    --color-ollama: #a855f7;
+    --color-lmstudio: #06b6d4;
+    --color-elevenlabs: #e11d48;
+}

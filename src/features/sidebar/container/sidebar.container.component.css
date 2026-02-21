@@ -1,0 +1,11 @@
+/* Sidebar Container — Component Styles */
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+/* Sidebar styles are defined globally in styles/_sidebar.css
+   via .sidebar-header, .sidebar-tabs, .sidebar-content,
+   .import-grid, .import-btn, .tree-node, .chat-session, etc.
+   No component-scoped overrides needed. */

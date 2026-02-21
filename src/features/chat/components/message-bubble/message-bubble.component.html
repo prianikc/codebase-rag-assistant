@@ -1,0 +1,36 @@
+<div class="message-row" [class.message-row--user]="role() === 'user'"
+    [class.message-row--assistant]="role() !== 'user'">
+    <div class="message-bubble" [class.message-bubble--user]="role() === 'user'"
+        [class.message-bubble--assistant]="role() !== 'user'">
+        <div class="message-meta">
+            <span>{{ role() | uppercase }}</span>
+            <span>{{ timestamp() | date:'HH:mm:ss' }}</span>
+        </div>
+        <div class="message-content" [innerHTML]="content() | markdown"></div>
+
+        @if (isStreaming()) {
+        <span class="stream-cursor"></span>
+        }
+
+        @if (sources() && sources()!.length > 0) {
+        <div class="sources-container">
+            <div class="sources-label">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                    style="width:12px;height:12px;">
+                    <path
+                        d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                </svg>
+                Matched Sources
+            </div>
+            <div class="sources-list">
+                @for (source of sources()!; track source.path) {
+                <div [class]="'source-chip' + (source.score > 0.75 ? ' source-chip--high' : '')">
+                    <span>{{ source.path }}</span>
+                    <span class="source-chip-score">{{ (source.score * 100) | number:'1.0-0' }}%</span>
+                </div>
+                }
+            </div>
+        </div>
+        }
+    </div>
+</div>

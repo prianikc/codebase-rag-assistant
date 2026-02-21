@@ -1,0 +1,10 @@
+/* Chat Input — Component Styles */
+
+:host {
+    display: block;
+}
+
+/* Input area styles are defined globally in styles.css via
+   .input-area, .input-toolbar, .input-row, .input-field, .send-btn,
+   .rag-toggle, .rag-status classes.
+   No component-scoped overrides needed. */

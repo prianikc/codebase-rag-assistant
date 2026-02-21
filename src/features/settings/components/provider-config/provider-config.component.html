@@ -1,0 +1,94 @@
+<div class="settings-section">
+    <h3 class="settings-section-title">{{ sectionTitle() }}</h3>
+    @if (hint()) {
+    <p class="settings-hint">{{ hint() }}</p>
+    }
+
+    <!-- Provider cards -->
+    <div class="provider-grid">
+        @for (p of providers(); track p.id) {
+        <button class="provider-card" [class.active]="selectedProviderId() === p.id" [style.--prov-color]="p.color"
+            (click)="providerSelected.emit(p.id)">
+            <span class="provider-card-icon">{{ p.icon }}</span>
+            <span class="provider-card-name">{{ p.name }}</span>
+        </button>
+        }
+    </div>
+
+    <!-- Selected provider config -->
+    @if (providerInfo()) {
+    <div class="provider-config">
+        <div class="provider-config-header">
+            <span class="provider-config-icon" [style.color]="providerInfo()!.color">{{ providerInfo()!.icon }}</span>
+            <div>
+                <div class="provider-config-name">{{ providerInfo()!.name }}</div>
+                <div class="provider-config-desc">{{ providerInfo()!.description }}</div>
+            </div>
+        </div>
+
+        <div class="provider-config-link">
+            🔑 <a [href]="providerInfo()!.apiKeyUrl" target="_blank" rel="noopener">Получить API ключ → {{
+                providerInfo()!.apiKeyLabel }}</a>
+        </div>
+
+        @if (providerInfo()!.provider !== 'gemini') {
+        <div class="form-group">
+            <label class="form-label">Base URL</label>
+            <input type="text" class="form-input" [ngModel]="baseUrl()" (ngModelChange)="baseUrlChange.emit($event)"
+                [placeholder]="providerInfo()!.baseUrl">
+        </div>
+        }
+
+        <div class="form-group">
+            <label class="form-label">API Key</label>
+            <div class="input-with-toggle">
+                <input [type]="showKey() ? 'text' : 'password'" class="form-input" [ngModel]="apiKey()"
+                    (ngModelChange)="apiKeyChange.emit($event)" placeholder="Вставьте API ключ">
+                <button class="toggle-vis-btn" (click)="showKeyChange.emit(!showKey())">{{ showKey() ? '🙈' : '👁'
+                    }}</button>
+            </div>
+        </div>
+
+        <!-- Model autocomplete -->
+        <div class="form-group" style="position:relative;">
+            <label class="form-label">Модель</label>
+            <input type="text" class="form-input" [ngModel]="modelId()" (ngModelChange)="onModelInput($event)"
+                placeholder="Введите или выберите модель" (focus)="showDropdownChange.emit(true)" autocomplete="off">
+            <button class="ac-toggle" (click)="showDropdownChange.emit(!showDropdown())" type="button">▾</button>
+            @if (showDropdown()) {
+            <div class="ac-dropdown" (mouseleave)="showDropdownChange.emit(false)">
+                @if (filteredFetched().length > 0) {
+                <div class="ac-group-label">✓ Доступные на сервере</div>
+                @for (m of filteredFetched(); track m) {
+                <button class="ac-option" [class.ac-active]="m === modelId()" (click)="selectModel(m)">{{ m }}</button>
+                }
+                }
+                @if (filteredPreset().length > 0) {
+                <div class="ac-group-label">⋯ Рекомендуемые</div>
+                @for (m of filteredPreset(); track m) {
+                <button class="ac-option" [class.ac-active]="m === modelId()" (click)="selectModel(m)">{{ m }}</button>
+                }
+                }
+                @if (filteredFetched().length === 0 && filteredPreset().length === 0) {
+                <div class="ac-empty">Нет совпадений</div>
+                }
+            </div>
+            }
+        </div>
+
+        <!-- Check connection -->
+        <div>
+            <button class="check-btn" (click)="checkModels.emit()" [disabled]="isFetching()">
+                @if (isFetching()) { <span class="spinner">⟳</span> Проверка... }
+                @else { 🔍 Проверить подключение }
+            </button>
+            @if (status()) {
+            <div [class]="'status-msg ' + (hasError() ? 'status-msg--error' : 'status-msg--success')"
+                style="margin-top:8px;">
+                {{ status() }}
+            </div>
+            }
+        </div>
+    </div>
+    }
+</div>

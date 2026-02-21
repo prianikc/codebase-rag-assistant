@@ -1,0 +1,179 @@
+<div class="settings-section">
+  <h3 class="settings-section-title">🎤 Speech-to-Text (STT)</h3>
+  <p class="settings-hint">Распознавание голоса для ввода текста.</p>
+
+  <div class="provider-grid provider-grid--small">
+    <button class="provider-card" [class.active]="sttProvider() === 'browser'"
+      (click)="sttProviderChange.emit('browser')" style="--prov-color:#6366f1">
+      <span class="provider-card-icon">🌐</span>
+      <span class="provider-card-name">Браузер</span>
+    </button>
+    <button class="provider-card" [class.active]="sttProvider() === 'openai'" (click)="sttProviderChange.emit('openai')"
+      style="--prov-color:#10a37f">
+      <span class="provider-card-icon">◉</span>
+      <span class="provider-card-name">OpenAI Whisper</span>
+    </button>
+    <button class="provider-card" [class.active]="sttProvider() === 'groq'" (click)="sttProviderChange.emit('groq')"
+      style="--prov-color:#f97316">
+      <span class="provider-card-icon">⚡</span>
+      <span class="provider-card-name">Groq Whisper</span>
+    </button>
+  </div>
+
+  @if (sttProvider() === 'browser') {
+  <div class="provider-config">
+    <p class="provider-config-desc">Встроенное распознавание через Web Speech API. Работает без API ключа, но качество
+      зависит от браузера.</p>
+    <div class="form-group">
+      <label class="form-label">Язык</label>
+      <select class="form-select" [ngModel]="sttLanguage()" (ngModelChange)="sttLanguageChange.emit($event)">
+        <option value="ru-RU">Русский</option>
+        <option value="en-US">English</option>
+        <option value="de-DE">Deutsch</option>
+        <option value="fr-FR">Français</option>
+        <option value="es-ES">Español</option>
+        <option value="zh-CN">中文</option>
+        <option value="ja-JP">日本語</option>
+      </select>
+    </div>
+  </div>
+  }
+
+  @if (sttProvider() === 'openai') {
+  <div class="provider-config">
+    <div class="provider-config-link">🔑 <a href="https://platform.openai.com/api-keys" target="_blank">Получить API
+        ключ → OpenAI Platform</a></div>
+    <div class="form-group">
+      <label class="form-label">API Key</label>
+      <input type="password" class="form-input" [ngModel]="sttApiKey()" (ngModelChange)="sttApiKeyChange.emit($event)"
+        placeholder="OpenAI API key">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Модель</label>
+      <select class="form-select" [ngModel]="sttModel()" (ngModelChange)="sttModelChange.emit($event)">
+        <option value="whisper-1">whisper-1</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Base URL</label>
+      <input type="text" class="form-input" [ngModel]="sttBaseUrl()" (ngModelChange)="sttBaseUrlChange.emit($event)"
+        placeholder="https://api.openai.com/v1">
+    </div>
+  </div>
+  }
+
+  @if (sttProvider() === 'groq') {
+  <div class="provider-config">
+    <div class="provider-config-link">🔑 <a href="https://console.groq.com/keys" target="_blank">Получить API ключ →
+        Groq Console</a></div>
+    <p class="provider-config-desc">Быстрое распознавание через Groq (бесплатно).</p>
+    <div class="form-group">
+      <label class="form-label">API Key</label>
+      <input type="password" class="form-input" [ngModel]="sttApiKey()" (ngModelChange)="sttApiKeyChange.emit($event)"
+        placeholder="Groq API key">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Модель</label>
+      <select class="form-select" [ngModel]="sttModel()" (ngModelChange)="sttModelChange.emit($event)">
+        <option value="whisper-large-v3-turbo">whisper-large-v3-turbo</option>
+        <option value="whisper-large-v3">whisper-large-v3</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Base URL</label>
+      <input type="text" class="form-input" [ngModel]="sttBaseUrl()" (ngModelChange)="sttBaseUrlChange.emit($event)"
+        placeholder="https://api.groq.com/openai/v1">
+    </div>
+  </div>
+  }
+
+  <h3 class="settings-section-title" style="margin-top:32px;">🔊 Text-to-Speech (TTS)</h3>
+  <p class="settings-hint">Озвучивание ответов ассистента.</p>
+
+  <div class="provider-grid provider-grid--small">
+    <button class="provider-card" [class.active]="ttsProvider() === 'browser'"
+      (click)="ttsProviderChange.emit('browser')" style="--prov-color:#6366f1">
+      <span class="provider-card-icon">🌐</span>
+      <span class="provider-card-name">Браузер</span>
+    </button>
+    <button class="provider-card" [class.active]="ttsProvider() === 'openai'" (click)="ttsProviderChange.emit('openai')"
+      style="--prov-color:#10a37f">
+      <span class="provider-card-icon">◉</span>
+      <span class="provider-card-name">OpenAI TTS</span>
+    </button>
+    <button class="provider-card" [class.active]="ttsProvider() === 'elevenlabs'"
+      (click)="ttsProviderChange.emit('elevenlabs')" style="--prov-color:#e11d48">
+      <span class="provider-card-icon">🎵</span>
+      <span class="provider-card-name">ElevenLabs</span>
+    </button>
+  </div>
+
+  @if (ttsProvider() === 'browser') {
+  <div class="provider-config">
+    <p class="provider-config-desc">Браузерный синтез речи. Бесплатно, без API ключей.</p>
+    <div class="form-group">
+      <label class="form-label">Скорость</label>
+      <input type="range" min="0.5" max="2" step="0.1" [ngModel]="ttsRate()"
+        (ngModelChange)="ttsRateChange.emit($event)" class="form-range">
+      <span class="range-value">{{ ttsRate() }}x</span>
+    </div>
+  </div>
+  }
+
+  @if (ttsProvider() === 'openai') {
+  <div class="provider-config">
+    <div class="provider-config-link">🔑 <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI
+        Platform</a></div>
+    <div class="form-group">
+      <label class="form-label">API Key</label>
+      <input type="password" class="form-input" [ngModel]="ttsApiKey()" (ngModelChange)="ttsApiKeyChange.emit($event)"
+        placeholder="OpenAI API key">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Модель</label>
+      <select class="form-select" [ngModel]="ttsModel()" (ngModelChange)="ttsModelChange.emit($event)">
+        <option value="tts-1">tts-1 (быстро)</option>
+        <option value="tts-1-hd">tts-1-hd (качество)</option>
+        <option value="gpt-4o-mini-tts">gpt-4o-mini-tts (новая)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Голос</label>
+      <select class="form-select" [ngModel]="ttsVoice()" (ngModelChange)="ttsVoiceChange.emit($event)">
+        <option value="alloy">Alloy</option>
+        <option value="echo">Echo</option>
+        <option value="fable">Fable</option>
+        <option value="onyx">Onyx</option>
+        <option value="nova">Nova</option>
+        <option value="shimmer">Shimmer</option>
+        <option value="ash">Ash</option>
+        <option value="coral">Coral</option>
+        <option value="sage">Sage</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Base URL</label>
+      <input type="text" class="form-input" [ngModel]="ttsBaseUrl()" (ngModelChange)="ttsBaseUrlChange.emit($event)"
+        placeholder="https://api.openai.com/v1">
+    </div>
+  </div>
+  }
+
+  @if (ttsProvider() === 'elevenlabs') {
+  <div class="provider-config">
+    <div class="provider-config-link">🔑 <a href="https://elevenlabs.io/app/settings/api-keys"
+        target="_blank">ElevenLabs API Keys</a></div>
+    <p class="provider-config-desc">Высококачественный синтез речи с реалистичными голосами.</p>
+    <div class="form-group">
+      <label class="form-label">API Key</label>
+      <input type="password" class="form-input" [ngModel]="ttsApiKey()" (ngModelChange)="ttsApiKeyChange.emit($event)"
+        placeholder="ElevenLabs API key">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Voice ID</label>
+      <input type="text" class="form-input" [ngModel]="ttsVoice()" (ngModelChange)="ttsVoiceChange.emit($event)"
+        placeholder="Voice ID из ElevenLabs">
+    </div>
+  </div>
+  }
+</div>
