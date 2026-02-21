@@ -1,0 +1,462 @@
+/* ==============================================
+   File Viewer — Component Styles
+   Premium code viewer with syntax highlighting
+   ============================================== */
+
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+}
+
+.file-viewer-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    background: var(--bg-secondary);
+}
+
+/* Header */
+.fv-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-primary);
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.fv-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.fv-file-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.fv-file-icon svg {
+    width: 14px;
+    height: 14px;
+    color: var(--accent-primary);
+}
+
+.fv-file-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.fv-file-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fv-file-path {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fv-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.fv-lang-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.15));
+    color: var(--accent-secondary);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.fv-line-count {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.fv-close-btn {
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.fv-close-btn:hover {
+    color: var(--accent-danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.fv-close-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Hint bar */
+.fv-hint-bar {
+    padding: 4px 16px;
+    background: rgba(99, 102, 241, 0.04);
+    border-bottom: 1px solid var(--border-primary);
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.fv-hint-bar strong {
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+/* Selection Toolbar */
+.fv-selection-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.08));
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 6px;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fv-selection-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent-primary);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.fv-selection-info svg {
+    width: 14px;
+    height: 14px;
+}
+
+.fv-ranges-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.fv-range-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+.fv-range-remove {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color var(--transition-fast);
+}
+
+.fv-range-remove:hover {
+    color: var(--accent-danger);
+}
+
+.fv-chip-action {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: all var(--transition-fast);
+    opacity: 0.6;
+}
+
+.fv-chip-action:hover {
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+.fv-chip-action--send {
+    color: var(--accent-success);
+}
+
+.fv-selection-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fv-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.fv-action-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.fv-action-btn--clear {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-primary);
+}
+
+.fv-action-btn--clear:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    background: var(--bg-hover);
+}
+
+.fv-action-btn--insert {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: 0 2px 8px var(--accent-primary-glow);
+}
+
+.fv-action-btn--insert:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px var(--accent-primary-glow);
+}
+
+/* Code Area */
+.fv-code-area {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+    background: #1a1b26;
+}
+
+.fv-code-area::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.fv-code-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fv-code-area::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+}
+
+.fv-code-area::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Code Table */
+.fv-code-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    table-layout: fixed;
+}
+
+.fv-code-table tr,
+.fv-code-table td {
+    border: none;
+    outline: none;
+}
+
+.fv-line {
+    transition: background var(--transition-fast);
+}
+
+.fv-line:hover:not(.fv-line--selected) .fv-line-number {
+    color: var(--text-secondary);
+}
+
+/* Selected line */
+.fv-line--selected {
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.fv-line--selected .fv-line-number {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+    background: transparent;
+}
+
+/* Line number column */
+.fv-line-number {
+    width: 52px;
+    min-width: 52px;
+    max-width: 52px;
+    text-align: right;
+    padding: 0 12px 0 8px;
+    color: rgba(128, 140, 160, 0.4);
+    font-size: 11px;
+    user-select: none;
+    cursor: pointer;
+    vertical-align: top;
+    border-right: none;
+    transition: all var(--transition-fast);
+}
+
+.fv-line-number:hover {
+    background: rgba(99, 102, 241, 0.06);
+}
+
+/* Line content — syntax highlighted */
+.fv-line-content {
+    padding: 0 16px;
+    white-space: pre;
+    tab-size: 4;
+    overflow: visible;
+    user-select: text;
+    cursor: text;
+    position: relative;
+}
+
+/* Action row between code lines */
+.fv-actions-row {
+    background: transparent !important;
+}
+
+.fv-actions-row td {
+    border: none !important;
+}
+
+.fv-actions-cell {
+    padding: 2px 16px !important;
+    display: flex;
+    gap: 8px;
+}
+
+.fv-action-inline {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.35);
+    padding: 0;
+    transition: color var(--transition-fast);
+    user-select: none;
+}
+
+.fv-action-inline:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.fv-action-inline--send {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.fv-action-inline--send:hover {
+    color: var(--accent-success);
+}
+
+/* Override highlight.js background - make it transparent */
+.fv-line-content .hljs {
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+/* Native Selection via CSS Custom Highlights API */
+::highlight(user-selection) {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: inherit;
+}
+
+/* Loading & Empty states */
+.fv-loading,
+.fv-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.fv-loading svg,
+.fv-empty svg {
+    width: 40px;
+    height: 40px;
+    opacity: 0.4;
+}
+
+.fv-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-primary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
